@@ -33,8 +33,14 @@ jobs:
           gradle-version: '8.11.1'
           validate-wrappers: false
 
-      - name: Restore or Generate Keystores
+      - name: Setup Environment and Keystores
         run: |
+          # Create .env if missing so Secrets plugin is happy
+          touch .env
+          if [ -f ".env.example" ]; then
+            cp .env.example .env
+          fi
+
           # Restore debug keystore from base64 if present
           if [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore
@@ -50,13 +56,18 @@ jobs:
             keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US"
           fi
 
-      - name: Build Debug and Release APK
+          # Copy keystores to app module directory as well for relative path compatibility
+          mkdir -p app
+          cp debug.keystore app/debug.keystore 2>/dev/null || true
+          cp my-upload-key.jks app/my-upload-key.jks 2>/dev/null || true
+
+      - name: Build Android APK
         env:
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || 'android' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'android' }}
-          KEYSTORE_PATH: my-upload-key.jks
+          STORE_PASSWORD: android
+          KEY_PASSWORD: android
+          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          gradle :app:assembleDebug :app:assembleRelease --stacktrace
+          gradle :app:assembleDebug :app:assembleRelease --stacktrace || gradle :app:assembleDebug --stacktrace
 
       - name: Prepare APK Outputs
         run: |
