@@ -68,14 +68,16 @@ jobs:
           cp debug.keystore app/debug.keystore 2>/dev/null || true
           cp my-upload-key.jks app/my-upload-key.jks 2>/dev/null || true
 
-      - name: Build Android APK
+      - name: Build Android APK with Gradle
         env:
           STORE_PASSWORD: android
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          gradle :app:assembleDebug --no-configuration-cache --stacktrace
-          gradle :app:assembleRelease --no-configuration-cache --stacktrace || true
+          gradle wrapper --gradle-version 8.11.1
+          chmod +x ./gradlew
+          ./gradlew :app:assembleDebug --stacktrace
+          ./gradlew :app:assembleRelease --stacktrace || true
 
       - name: Prepare APK Outputs
         run: |
