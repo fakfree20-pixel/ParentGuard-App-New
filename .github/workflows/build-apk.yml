@@ -32,33 +32,32 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      - name: Restore or Generate Wrapper & Keystores
+      - name: Restore or Generate Keystores and Wrapper
         run: |
           # Generate fresh gradle wrapper if jar is missing or corrupted
-          gradle wrapper --gradle-version 8.11.1
-          chmod +x ./gradlew
+          gradle wrapper --gradle-version 8.11.1 || true
+          chmod +x ./gradlew || true
 
           # Restore debug keystore from base64 if present
           if [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore
           fi
 
-          # Ensure debug.keystore exists
+          # Ensure debug.keystore exists with androiddebugkey alias
           if [ ! -f "debug.keystore" ]; then
-            keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-          # Ensure my-upload-key.jks exists for release build if not provided
-          if [ ! -f "my-upload-key.jks" ] && [ -z "$KEYSTORE_PATH" ]; then
-            cp debug.keystore my-upload-key.jks
-            export STORE_PASSWORD=android
-            export KEY_PASSWORD=android
+          # Ensure my-upload-key.jks exists with upload alias for release builds
+          if [ ! -f "my-upload-key.jks" ]; then
+            keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US"
           fi
 
-      - name: Build Debug & Release APK
+      - name: Build Debug and Release APK
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || 'android' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'android' }}
+          KEYSTORE_PATH: my-upload-key.jks
         run: |
           ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
 
