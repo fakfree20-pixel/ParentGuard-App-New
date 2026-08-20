@@ -27,6 +27,13 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -56,7 +63,7 @@ jobs:
             keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US"
           fi
 
-          # Copy keystores to app module directory as well for relative path compatibility
+          # Copy keystores to app module directory as well
           mkdir -p app
           cp debug.keystore app/debug.keystore 2>/dev/null || true
           cp my-upload-key.jks app/my-upload-key.jks 2>/dev/null || true
@@ -67,7 +74,8 @@ jobs:
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          gradle :app:assembleDebug :app:assembleRelease --stacktrace || gradle :app:assembleDebug --stacktrace
+          gradle :app:assembleDebug --no-configuration-cache --stacktrace
+          gradle :app:assembleRelease --no-configuration-cache --stacktrace || true
 
       - name: Prepare APK Outputs
         run: |
