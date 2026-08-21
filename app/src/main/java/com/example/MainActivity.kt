@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,23 +29,28 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -79,10 +87,15 @@ import com.example.ui.components.ChildAvatarCircle
 import com.example.ui.components.PinKeypadDialog
 import com.example.ui.screens.ActivityLogScreen
 import com.example.ui.screens.AppsControlScreen
+import com.example.ui.screens.AuthScreen
+import com.example.ui.screens.ChildDevicePairingScreen
 import com.example.ui.screens.ChildModeScreen
+import com.example.ui.screens.ChildPermissionsScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.ParentDeviceBindingDialog
 import com.example.ui.screens.RewardsScreen
 import com.example.ui.screens.ScheduleRulesScreen
+import com.example.ui.screens.WelcomeModeScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.NaturalBg
 import com.example.ui.theme.NaturalBorder
@@ -96,6 +109,7 @@ import com.example.ui.theme.NaturalSurfaceVariant
 import com.example.ui.theme.NaturalTextPrimary
 import com.example.ui.theme.NaturalTextSecondary
 import com.example.ui.theme.Terracotta700
+import com.example.ui.viewmodel.AppMode
 import com.example.ui.viewmodel.ParentalControlViewModel
 
 class MainActivity : ComponentActivity() {
@@ -115,6 +129,8 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
+    val appMode by viewModel.currentAppMode.collectAsStateWithLifecycle()
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val activeChild by viewModel.activeChildProfile.collectAsStateWithLifecycle()
     val allChildren by viewModel.allChildProfiles.collectAsStateWithLifecycle()
     val apps by viewModel.appUsageRules.collectAsStateWithLifecycle()
@@ -126,14 +142,28 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
     val appNotifications by viewModel.appNotifications.collectAsStateWithLifecycle()
     val callLogs by viewModel.callLogs.collectAsStateWithLifecycle()
     val currentLang by viewModel.currentLanguage.collectAsStateWithLifecycle()
-    val isChildMode by viewModel.isChildModeActive.collectAsStateWithLifecycle()
+    val devicePermissions by viewModel.devicePermissions.collectAsStateWithLifecycle()
 
     val isHindi = currentLang == "hi"
 
     var selectedNavTab by remember { mutableIntStateOf(0) }
     var showAddChildDialog by remember { mutableStateOf(false) }
     var showChildDropdown by remember { mutableStateOf(false) }
+    var showParentAccountMenu by remember { mutableStateOf(false) }
+    var showParentBindingDialog by remember { mutableStateOf(false) }
     var showPinDialogForChildMode by remember { mutableStateOf(false) }
+
+    // Dialog: Parent Binding QR & 9-digit code
+    if (showParentBindingDialog) {
+        ParentDeviceBindingDialog(
+            bindingCode = currentUser?.masterBindingCode ?: "794 821 305",
+            isHindi = isHindi,
+            onDismiss = { showParentBindingDialog = false },
+            onAddChildDirectly = { name, age ->
+                viewModel.addChildProfile(name, age, (0..5).random(), 120)
+            }
+        )
+    }
 
     if (showAddChildDialog) {
         AddChildDialog(
@@ -154,7 +184,7 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                 val ok = viewModel.verifyPin(pin)
                 if (ok) {
                     showPinDialogForChildMode = false
-                    viewModel.setChildMode(false)
+                    viewModel.setAppMode(AppMode.PARENT_MAIN)
                 }
                 ok
             },
@@ -163,8 +193,93 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
         )
     }
 
+    // Route based on AppMode
+    when (appMode) {
+        AppMode.WELCOME_MODE_SELECTION -> {
+            WelcomeModeScreen(
+                isHindi = isHindi,
+                onToggleLanguage = { viewModel.toggleLanguage() },
+                onSelectParentMode = {
+                    if (currentUser?.isLoggedIn == true) {
+                        viewModel.setAppMode(AppMode.PARENT_MAIN)
+                    } else {
+                        viewModel.setAppMode(AppMode.PARENT_AUTH)
+                    }
+                },
+                onSelectChildMode = {
+                    viewModel.setAppMode(AppMode.CHILD_BINDING)
+                }
+            )
+            return
+        }
+
+        AppMode.PARENT_AUTH -> {
+            AuthScreen(
+                isHindi = isHindi,
+                onToggleLanguage = { viewModel.toggleLanguage() },
+                onLogin = { email, pass, rememberMe ->
+                    viewModel.login(email, pass, rememberMe)
+                },
+                onRegister = { name, email, pass ->
+                    viewModel.register(name, email, pass)
+                },
+                onBackToModeSelect = {
+                    viewModel.setAppMode(AppMode.WELCOME_MODE_SELECTION)
+                },
+                onSwitchToChildMode = {
+                    viewModel.setAppMode(AppMode.CHILD_BINDING)
+                }
+            )
+            return
+        }
+
+        AppMode.CHILD_BINDING -> {
+            ChildDevicePairingScreen(
+                isHindi = isHindi,
+                onToggleLanguage = { viewModel.toggleLanguage() },
+                onPairWithCode = { code, name, age ->
+                    viewModel.bindChildWithCode(code, name, age)
+                },
+                onBack = {
+                    viewModel.setAppMode(AppMode.WELCOME_MODE_SELECTION)
+                }
+            )
+            return
+        }
+
+        AppMode.CHILD_PERMISSIONS -> {
+            ChildPermissionsScreen(
+                permissions = devicePermissions,
+                isHindi = isHindi,
+                onTogglePermission = { id -> viewModel.togglePermission(id) },
+                onCompleteSetup = {
+                    viewModel.setAppMode(AppMode.CHILD_PROTECTED)
+                }
+            )
+            return
+        }
+
+        AppMode.CHILD_PROTECTED -> {
+            val child = activeChild ?: ChildProfile(name = "Child", age = 9)
+            ChildModeScreen(
+                child = child,
+                apps = apps,
+                tasks = tasks,
+                isHindi = isHindi,
+                onExitChildMode = { showPinDialogForChildMode = true },
+                onRequestExtraTime = { mins -> viewModel.requestExtraTimeByChild(mins) },
+                onCompleteTask = { task -> viewModel.completeTaskByChild(task) },
+                onVerifyPin = { pin -> viewModel.verifyPin(pin) }
+            )
+            return
+        }
+
+        AppMode.PARENT_MAIN -> {
+            // Parent Dashboard Scaffold
+        }
+    }
+
     if (activeChild == null) {
-        // Loading state with Natural Tones
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -172,7 +287,14 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Shield, contentDescription = null, tint = NaturalGreen700, modifier = Modifier.size(56.dp))
+                Image(
+                    painter = painterResource(id = R.drawable.user_profile_logo_1787259898289),
+                    contentDescription = "ParentGuard Logo",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = if (isHindi) "ParentGuard लोड हो रहा है..." else "Loading ParentGuard...",
@@ -186,22 +308,7 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
 
     val child = activeChild!!
 
-    // Child Mode takes over full UI if active
-    if (isChildMode) {
-        ChildModeScreen(
-            child = child,
-            apps = apps,
-            tasks = tasks,
-            isHindi = isHindi,
-            onExitChildMode = { viewModel.setChildMode(false) },
-            onRequestExtraTime = { mins -> viewModel.requestExtraTimeByChild(mins) },
-            onCompleteTask = { task -> viewModel.completeTaskByChild(task) },
-            onVerifyPin = { pin -> viewModel.verifyPin(pin) }
-        )
-        return
-    }
-
-    // Parent Mode Layout with Natural Tones
+    // Parent Mode Layout
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -272,12 +379,28 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                                 )
                             }
 
+                            Divider()
+
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = NaturalGreen700, modifier = Modifier.size(20.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(if (isHindi) "+ बच्चे का फ़ोन बाइंड करें" else "+ Bind Child Device (QR/Code)", fontWeight = FontWeight.Bold, color = NaturalGreen700)
+                                    }
+                                },
+                                onClick = {
+                                    showChildDropdown = false
+                                    showParentBindingDialog = true
+                                }
+                            )
+
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.PersonAdd, contentDescription = null, tint = NaturalGreen700, modifier = Modifier.size(20.dp))
                                         Spacer(modifier = Modifier.width(10.dp))
-                                        Text(if (isHindi) "+ नया बच्चा जोड़ें" else "+ Add Child", fontWeight = FontWeight.Bold, color = NaturalGreen700)
+                                        Text(if (isHindi) "+ प्रोफ़ाइल जोड़ें" else "+ Add Profile Manually", color = NaturalTextPrimary)
                                     }
                                 },
                                 onClick = {
@@ -289,6 +412,25 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                     }
                 },
                 actions = {
+                    // FlashGet 9-Digit Binding Code Button
+                    IconButton(
+                        onClick = { showParentBindingDialog = true },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(NaturalGreen100)
+                            .testTag("parent_qr_binding_button")
+                    ) {
+                        Icon(
+                            Icons.Default.QrCodeScanner,
+                            contentDescription = "Bind Device",
+                            tint = NaturalGreen700,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
                     // Language Switcher Toggle
                     IconButton(
                         onClick = { viewModel.toggleLanguage() },
@@ -306,24 +448,104 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
-                    // Kid Mode Switcher Button with Natural Tones pill
-                    IconButton(
-                        onClick = { viewModel.setChildMode(true) },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(NaturalSurfaceVariant)
-                            .testTag("enter_child_mode_button")
-                    ) {
-                        Icon(
-                            Icons.Default.ChildCare,
-                            contentDescription = "Switch to Child View",
-                            tint = NaturalTextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    // Parent Account / Profile Menu
+                    Box {
+                        IconButton(
+                            onClick = { showParentAccountMenu = true },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(NaturalSurfaceVariant)
+                                .testTag("parent_account_menu_button")
+                        ) {
+                            Icon(
+                                Icons.Default.AccountCircle,
+                                contentDescription = "Account Settings",
+                                tint = NaturalGreen700,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showParentAccountMenu,
+                            onDismissRequest = { showParentAccountMenu = false }
+                        ) {
+                            // User Info Header
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = currentUser?.fullName ?: "Parent Admin",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = NaturalTextPrimary
+                                        )
+                                        Text(
+                                            text = currentUser?.email ?: "parent.guardian@gmail.com",
+                                            fontSize = 11.sp,
+                                            color = NaturalTextSecondary
+                                        )
+                                        Text(
+                                            text = "Plan: ${currentUser?.accountType ?: "FlashGet Pro"}",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = NaturalGreen700
+                                        )
+                                    }
+                                },
+                                onClick = {}
+                            )
+
+                            Divider()
+
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = NaturalGreen700, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(if (isHindi) "बाइंडिंग कोड & QR" else "Pairing Code & QR")
+                                    }
+                                },
+                                onClick = {
+                                    showParentAccountMenu = false
+                                    showParentBindingDialog = true
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.ChildCare, contentDescription = null, tint = NaturalTextPrimary, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(if (isHindi) "बच्चे के मोड में जाएं" else "Switch to Kids Device")
+                                    }
+                                },
+                                onClick = {
+                                    showParentAccountMenu = false
+                                    viewModel.setAppMode(AppMode.CHILD_PROTECTED)
+                                }
+                            )
+
+                            Divider()
+
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Logout, contentDescription = null, tint = Terracotta700, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(if (isHindi) "लॉग आउट करें (Logout)" else "Sign Out / Logout", color = Terracotta700, fontWeight = FontWeight.Bold)
+                                    }
+                                },
+                                onClick = {
+                                    showParentAccountMenu = false
+                                    viewModel.logout()
+                                }
+                            )
+                        }
                     }
+
                     Spacer(modifier = Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -332,7 +554,6 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
             )
         },
         bottomBar = {
-            // Natural Tones NavigationBar (#F3F6EF with #DDE5D9 top border)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

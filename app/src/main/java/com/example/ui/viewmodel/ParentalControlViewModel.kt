@@ -10,8 +10,10 @@ import com.example.data.model.AppNotificationItem
 import com.example.data.model.AppUsageRule
 import com.example.data.model.CallLogItem
 import com.example.data.model.ChildProfile
+import com.example.data.model.DevicePermissionItem
 import com.example.data.model.GeofenceZone
 import com.example.data.model.ScreenRewardTask
+import com.example.data.model.UserAccount
 import com.example.data.model.WebFilterRule
 import com.example.data.model.WhatsAppConversation
 import kotlinx.coroutines.Job
@@ -27,12 +29,195 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class ParentalControlViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository: ParentalRepository
+enum class AppMode {
+    WELCOME_MODE_SELECTION,
+    PARENT_AUTH,
+    PARENT_MAIN,
+    CHILD_BINDING,
+    CHILD_PERMISSIONS,
+    CHILD_PROTECTED
+}
 
-    init {
-        val db = AppDatabase.getDatabase(application)
-        repository = ParentalRepository(db.parentalControlDao())
+class ParentalControlViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository: ParentalRepository = ParentalRepository(AppDatabase.getDatabase(application).parentalControlDao())
+    private val prefs = application.getSharedPreferences("parent_guard_prefs", android.content.Context.MODE_PRIVATE)
+
+    // User Authentication State (FlashGet Kids style)
+    private val _currentUser = MutableStateFlow<UserAccount?>(
+        UserAccount(
+            email = prefs.getString("user_email", "musahidraza78600@gmail.com") ?: "musahidraza78600@gmail.com",
+            fullName = prefs.getString("user_name", "Parent Admin") ?: "Parent Admin",
+            isLoggedIn = prefs.getBoolean("is_logged_in", true),
+            accountType = "FlashGet Pro Lifetime",
+            masterBindingCode = "794 821 305",
+            boundDeviceCount = 2
+        )
+    )
+    val currentUser: StateFlow<UserAccount?> = _currentUser.asStateFlow()
+
+    // Current App Mode Navigation
+    private val _currentAppMode = MutableStateFlow(
+        if (prefs.getBoolean("is_logged_in", true)) AppMode.PARENT_MAIN else AppMode.WELCOME_MODE_SELECTION
+    )
+    val currentAppMode: StateFlow<AppMode> = _currentAppMode.asStateFlow()
+
+    fun setAppMode(mode: AppMode) {
+        _currentAppMode.value = mode
+    }
+
+    // Auth actions
+    fun login(email: String, pass: String, rememberMe: Boolean = true): Boolean {
+        if (email.isNotBlank() && pass.length >= 4) {
+            val user = UserAccount(
+                email = email.trim(),
+                fullName = email.substringBefore("@").replace(".", " ").capitalizeWords(),
+                isLoggedIn = true,
+                accountType = "FlashGet Pro Lifetime",
+                masterBindingCode = generateBindingCode(),
+                boundDeviceCount = 2
+            )
+            _currentUser.value = user
+            prefs.edit()
+                .putString("user_email", user.email)
+                .putString("user_name", user.fullName)
+                .putBoolean("is_logged_in", true)
+                .apply()
+            _currentAppMode.value = AppMode.PARENT_MAIN
+            return true
+        }
+        return false
+    }
+
+    fun register(name: String, email: String, pass: String): Boolean {
+        if (name.isNotBlank() && email.isNotBlank() && pass.length >= 4) {
+            val user = UserAccount(
+                email = email.trim(),
+                fullName = name.trim(),
+                isLoggedIn = true,
+                accountType = "FlashGet Pro Lifetime",
+                masterBindingCode = generateBindingCode(),
+                boundDeviceCount = 0
+            )
+            _currentUser.value = user
+            prefs.edit()
+                .putString("user_email", user.email)
+                .putString("user_name", user.fullName)
+                .putBoolean("is_logged_in", true)
+                .apply()
+            _currentAppMode.value = AppMode.PARENT_MAIN
+            return true
+        }
+        return false
+    }
+
+    fun logout() {
+        _currentUser.value = null
+        prefs.edit().putBoolean("is_logged_in", false).apply()
+        _currentAppMode.value = AppMode.WELCOME_MODE_SELECTION
+    }
+
+    private fun generateBindingCode(): String {
+        val part1 = (100..999).random()
+        val part2 = (100..999).random()
+        val part3 = (100..999).random()
+        return "$part1 $part2 $part3"
+    }
+
+    private fun String.capitalizeWords(): String = split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+
+    // Child Mode Setup & Permissions Checklist
+    private val _devicePermissions = MutableStateFlow(
+        listOf(
+            DevicePermissionItem(
+                id = "accessibility",
+                title = "Accessibility Service",
+                titleHindi = "एक्सेसिबिलिटी सेवा",
+                description = "Required to monitor app usage, screen time limits, and content filter in real-time.",
+                descriptionHindi = "ऐप उपयोग, स्क्रीन समय सीमा और सामग्री फ़िल्टर की वास्तविक समय निगरानी के लिए आवश्यक।",
+                iconName = "accessibility",
+                isGranted = true,
+                isRequired = true
+            ),
+            DevicePermissionItem(
+                id = "usage_access",
+                title = "Usage Data Access",
+                titleHindi = "उपयोग डेटा एक्सेस",
+                description = "Allows tracking daily application usage hours, statistics, and launch frequency.",
+                descriptionHindi = "दैनिक ऐप उपयोग के घंटे, आंकड़े और ऐप खोलने की आवृत्ति ट्रैक करने की अनुमति देता है।",
+                iconName = "data_usage",
+                isGranted = true,
+                isRequired = true
+            ),
+            DevicePermissionItem(
+                id = "notification_listener",
+                title = "Notification Listener",
+                titleHindi = "नोटिफिकेशन लिसनर",
+                description = "Synchronizes suspicious chat messages, social alerts, and spam calls to parent device.",
+                descriptionHindi = "संदेहास्पद चैट संदेश, सोशल अलर्ट और स्पैम कॉल को माता-पिता के फ़ोन पर सिंक करता है।",
+                iconName = "notifications",
+                isGranted = true,
+                isRequired = true
+            ),
+            DevicePermissionItem(
+                id = "device_admin",
+                title = "Anti-Uninstall Device Admin",
+                titleHindi = "एंटी-अनइंस्टॉल डिवाइस एडमिन",
+                description = "Prevents child from deleting ParentGuard without entering parent security PIN.",
+                descriptionHindi = "माता-पिता के सुरक्षा पिन के बिना बच्चे को ऐप हटाने से रोकता है।",
+                iconName = "security",
+                isGranted = true,
+                isRequired = true
+            ),
+            DevicePermissionItem(
+                id = "location",
+                title = "Live Location & GPS",
+                titleHindi = "लाइव लोकेशन और जीपीएस",
+                description = "Enables geofencing safe zones and live tracking of child's physical coordinates.",
+                descriptionHindi = "जियोफ़ेंस सुरक्षित क्षेत्र और बच्चे के वास्तविक स्थान की लाइव ट्रैकिंग सक्षम करता है।",
+                iconName = "location_on",
+                isGranted = true,
+                isRequired = false
+            ),
+            DevicePermissionItem(
+                id = "battery_optimization",
+                title = "Ignore Battery Optimization",
+                titleHindi = "बैटरी ऑप्टिमाइज़ेशन अनदेखा करें",
+                description = "Keeps background safety protection continuously running without being killed by Android OS.",
+                descriptionHindi = "एंड्रॉइड ओएस द्वारा बंद किए बिना बैकग्राउंड सुरक्षा को लगातार चालू रखता है।",
+                iconName = "battery_charging_full",
+                isGranted = true,
+                isRequired = false
+            )
+        )
+    )
+    val devicePermissions: StateFlow<List<DevicePermissionItem>> = _devicePermissions.asStateFlow()
+
+    fun togglePermission(permissionId: String) {
+        _devicePermissions.value = _devicePermissions.value.map {
+            if (it.id == permissionId) it.copy(isGranted = !it.isGranted) else it
+        }
+    }
+
+    fun bindChildWithCode(code: String, childName: String = "My Kid's Device", childAge: Int = 10): Boolean {
+        // Any 9 digit code is accepted or matches master
+        val cleanCode = code.replace(" ", "").replace("-", "")
+        if (cleanCode.length >= 6) {
+            viewModelScope.launch {
+                val newProfile = ChildProfile(
+                    name = childName.ifBlank { "Child Device" },
+                    age = childAge,
+                    avatarIndex = (0..5).random(),
+                    deviceModel = "Infinix X6823C",
+                    weekdayLimitMinutes = 120,
+                    weekendLimitMinutes = 180
+                )
+                val newId = repository.insertChildProfile(newProfile)
+                _selectedChildId.value = newId
+            }
+            _currentAppMode.value = AppMode.CHILD_PERMISSIONS
+            return true
+        }
+        return false
     }
 
     // Language setting ("hi" = Hindi, "en" = English)

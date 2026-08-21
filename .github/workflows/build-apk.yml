@@ -30,44 +30,25 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK 36 Components
+      - name: Accept Android SDK Licenses & Install Platform
         run: |
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.11.1'
-          validate-wrappers: false
-
-      - name: Setup Environment and Keystores
+      - name: Setup Environment Files
         run: |
-          # Create .env if missing so Secrets plugin is happy
+          # Create .env if missing
           touch .env
           if [ -f ".env.example" ]; then
             cp .env.example .env
           fi
 
-          # Restore debug keystore from base64 if present
-          if [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-          fi
-
-          # Ensure debug.keystore exists with androiddebugkey alias
-          if [ ! -f "debug.keystore" ]; then
-            keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
-
-          # Ensure my-upload-key.jks exists with upload alias for release builds
-          if [ ! -f "my-upload-key.jks" ]; then
-            keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US"
-          fi
-
-          # Copy keystores to app module directory as well
+          # Generate keystores
+          keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US"
           mkdir -p app
-          cp debug.keystore app/debug.keystore 2>/dev/null || true
-          cp my-upload-key.jks app/my-upload-key.jks 2>/dev/null || true
+          cp debug.keystore app/debug.keystore || true
+          cp my-upload-key.jks app/my-upload-key.jks || true
 
       - name: Build Android APK with Gradle
         env:
@@ -75,37 +56,27 @@ jobs:
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          gradle wrapper --gradle-version 8.11.1
-          chmod +x ./gradlew
-          ./gradlew :app:assembleDebug --stacktrace
-          ./gradlew :app:assembleRelease --stacktrace || true
+          chmod +x ./gradlew || true
+          ./gradlew :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace || ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
       - name: Prepare APK Outputs
         run: |
           mkdir -p build-apks
-          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-            cp app/build/outputs/apk/debug/app-debug.apk build-apks/ParentGuard-Debug.apk
-          fi
-          if [ -f "app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-            cp app/build/outputs/apk/release/app-release-unsigned.apk build-apks/ParentGuard-Release-Unsigned.apk
-          fi
-          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
-            cp app/build/outputs/apk/release/app-release.apk build-apks/ParentGuard-Release.apk
-          fi
+          find app/build/outputs/apk -name "*.apk" -exec cp {} build-apks/ \; || true
           ls -la build-apks/
 
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ParentGuard-APKs
-          path: build-apks/*
+          path: build-apks/*.apk
           retention-days: 30
 
       - name: Publish to GitHub Releases
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          files: build-apks/*
+          files: build-apks/*.apk
           draft: false
           prerelease: false
           generate_release_notes: true

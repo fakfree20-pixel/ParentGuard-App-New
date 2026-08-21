@@ -140,3 +140,24 @@ data class CallLogItem(
     val isSuspicious: Boolean = false,
     val hasRecording: Boolean = false
 )
+
+data class UserAccount(
+    val email: String = "parent.guardian@gmail.com",
+    val fullName: String = "Parent Guardian",
+    val isLoggedIn: Boolean = true,
+    val accountType: String = "Pro Premium",
+    val masterBindingCode: String = "794 821 305",
+    val boundDeviceCount: Int = 2
+)
+
+data class DevicePermissionItem(
+    val id: String,
+    val title: String,
+    val titleHindi: String,
+    val description: String,
+    val descriptionHindi: String,
+    val iconName: String,
+    val isGranted: Boolean,
+    val isRequired: Boolean = true
+)
+
