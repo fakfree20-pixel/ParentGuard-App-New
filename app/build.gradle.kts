@@ -31,19 +31,10 @@ android {
       if (keyFile.exists()) {
         storeFile = keyFile
         storePassword = System.getenv("STORE_PASSWORD") ?: "android"
-        keyAlias = "upload"
+        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
         keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
       } else if (dbgFile.exists()) {
         storeFile = dbgFile
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
-      }
-    }
-    create("debugConfig") {
-      val dbgKeystore = file("${rootDir}/debug.keystore")
-      if (dbgKeystore.exists()) {
-        storeFile = dbgKeystore
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"
@@ -57,14 +48,19 @@ android {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       val relConfig = signingConfigs.getByName("release")
-      if (relConfig.storeFile != null) {
+      if (relConfig.storeFile != null && relConfig.storeFile?.exists() == true) {
         signingConfig = relConfig
       }
     }
     debug {
-      val dbgConfig = signingConfigs.getByName("debugConfig")
-      if (dbgConfig.storeFile != null) {
-        signingConfig = dbgConfig
+      val dbgFile = file("${rootDir}/debug.keystore")
+      if (dbgFile.exists()) {
+        signingConfig = signingConfigs.getByName("debug").apply {
+          storeFile = dbgFile
+          storePassword = "android"
+          keyAlias = "androiddebugkey"
+          keyPassword = "android"
+        }
       }
     }
   }

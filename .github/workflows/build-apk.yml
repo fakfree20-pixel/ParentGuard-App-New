@@ -30,16 +30,24 @@ jobs:
       - name: Setup Android SDK Licenses
         run: |
           mkdir -p "$ANDROID_HOME/licenses" 2>/dev/null || true
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_HOME/licenses/android-sdk-license" 2>/dev/null || true
-          echo "84831b9409646a918e30573bab4c9c91346d8abd" >> "$ANDROID_HOME/licenses/android-sdk-preview-license" 2>/dev/null || true
-          echo "d56f518547926e707e8178b773d06627041f3800" >> "$ANDROID_HOME/licenses/android-sdk-license" 2>/dev/null || true
           mkdir -p "$ANDROID_SDK_ROOT/licenses" 2>/dev/null || true
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_SDK_ROOT/licenses/android-sdk-license" 2>/dev/null || true
-          echo "84831b9409646a918e30573bab4c9c91346d8abd" >> "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license" 2>/dev/null || true
+          
+          # Add all known Android SDK and Preview license hashes
+          cat << 'EOF' > "$ANDROID_HOME/licenses/android-sdk-license"
+          89337d125679aa4727041753eab9c7936030784b
+          24333f8a63b6825ea9c5514f83c2829b004d1fee
+          d56f518547926e707e8178b773d06627041f3800
+          EOF
+
+          cat << 'EOF' > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          84831b9409646a918e30573bab4c9c91346d8abd
+          EOF
+
+          cp -r "$ANDROID_HOME/licenses"/* "$ANDROID_SDK_ROOT/licenses/" 2>/dev/null || true
 
       - name: Setup Environment & Keystores
         run: |
-          # Create .env with fallback
+          # Create .env with fallback values
           touch .env
           echo "GEMINI_API_KEY=" >> .env
           if [ -f ".env.example" ]; then
@@ -75,6 +83,7 @@ jobs:
         env:
           STORE_PASSWORD: android
           KEY_PASSWORD: android
+          KEY_ALIAS: upload
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
           ./gradlew assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false -Dksp.useKSP2=true -Dksp.incremental=false
@@ -84,11 +93,13 @@ jobs:
         env:
           STORE_PASSWORD: android
           KEY_PASSWORD: android
+          KEY_ALIAS: upload
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
           ./gradlew assembleRelease --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false -Dksp.useKSP2=true -Dksp.incremental=false
 
       - name: Prepare APK Outputs
+        if: always()
         run: |
           mkdir -p build-apks
           find . -type f -name "*.apk" -exec cp {} build-apks/ \; 2>/dev/null || true
@@ -96,9 +107,12 @@ jobs:
 
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ParentGuard-APKs
-          path: build-apks/*.apk
+          path: |
+            build-apks/*.apk
+            app/build/outputs/apk/**/*.apk
           retention-days: 30
           if-no-files-found: warn
 
