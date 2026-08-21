@@ -22,17 +22,20 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK Licenses
+      - name: Setup Android SDK Licenses
         run: |
-          yes | sdkmanager --licenses || true
+          mkdir -p "$ANDROID_HOME/licenses" 2>/dev/null || true
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_HOME/licenses/android-sdk-license" 2>/dev/null || true
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" >> "$ANDROID_HOME/licenses/android-sdk-preview-license" 2>/dev/null || true
+          echo "d56f518547926e707e8178b773d06627041f3800" >> "$ANDROID_HOME/licenses/android-sdk-license" 2>/dev/null || true
+          mkdir -p "$ANDROID_SDK_ROOT/licenses" 2>/dev/null || true
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_SDK_ROOT/licenses/android-sdk-license" 2>/dev/null || true
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" >> "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license" 2>/dev/null || true
 
       - name: Setup Environment & Keystores
         run: |
@@ -45,19 +48,19 @@ jobs:
 
           # Decode or generate debug.keystore
           if [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore || true
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
-          if [ ! -f "debug.keystore" ]; then
+          if [ ! -s "debug.keystore" ]; then
             keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
           fi
 
-          # Generate release keystore if needed
+          # Generate release keystore
           keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US" || true
 
           # Ensure app directory and root both have copies
           mkdir -p app
-          cp debug.keystore app/debug.keystore || true
-          cp my-upload-key.jks app/my-upload-key.jks || true
+          cp debug.keystore app/debug.keystore 2>/dev/null || true
+          cp my-upload-key.jks app/my-upload-key.jks 2>/dev/null || true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -70,8 +73,8 @@ jobs:
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          chmod +x ./gradlew || true
-          ./gradlew assembleDebug --stacktrace --no-daemon --no-configuration-cache
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false
 
       - name: Build Release APK (Optional)
         continue-on-error: true
@@ -80,12 +83,12 @@ jobs:
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          ./gradlew assembleRelease --stacktrace --no-daemon --no-configuration-cache
+          ./gradlew assembleRelease --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false
 
       - name: Prepare APK Outputs
         run: |
           mkdir -p build-apks
-          find . -type f -name "*.apk" -exec cp {} build-apks/ \; || true
+          find . -type f -name "*.apk" -exec cp {} build-apks/ \; 2>/dev/null || true
           ls -la build-apks/
 
       - name: Upload APK Artifacts
@@ -106,4 +109,5 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
