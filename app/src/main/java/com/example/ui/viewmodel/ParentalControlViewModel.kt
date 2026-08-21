@@ -361,6 +361,10 @@ class ParentalControlViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
+    fun updateParentPin(newPin: String) {
+        changePin(newPin)
+    }
+
     // App Mode: false = Parent Mode, true = Child Device Mode
     private val _isChildModeActive = MutableStateFlow(false)
     val isChildModeActive: StateFlow<Boolean> = _isChildModeActive.asStateFlow()

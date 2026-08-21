@@ -41,8 +41,27 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Widgets
+import com.example.ui.components.AlbumsSafetyDialog
+import com.example.ui.components.BrowserSafetyDialog
+import com.example.ui.components.CallAndSmsSafetyDialog
+import com.example.ui.components.CameraSnapshotDialog
+import com.example.ui.components.CheckPermissionsDialog
+import com.example.ui.components.DeviceActivityDialog
+import com.example.ui.components.HowToOpenHiddenAppDialog
+import com.example.ui.components.LivePaintingDialog
+import com.example.ui.components.ParentNoticeBroadcastDialog
+import com.example.ui.components.ScreenSnapshotDialog
+import com.example.ui.components.SocialAppDetectionDialog
+import com.example.ui.components.UsageSafetyDialog
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Help
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.PhotoAlbum
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -147,6 +166,18 @@ fun DashboardScreen(
     var showNotificationsDialog by remember { mutableStateOf(false) }
     var showCallHistoryDialog by remember { mutableStateOf(false) }
     var showAntiUninstallDialog by remember { mutableStateOf(false) }
+    var showCameraSnapshotDialog by remember { mutableStateOf(false) }
+    var showScreenSnapshotDialog by remember { mutableStateOf(false) }
+    var showLivePaintingDialog by remember { mutableStateOf(false) }
+    var showDeviceActivityDialog by remember { mutableStateOf(false) }
+    var showCheckPermissionsDialog by remember { mutableStateOf(false) }
+    var showHowToOpenHiddenAppDialog by remember { mutableStateOf(false) }
+    var showNoticeBroadcastDialog by remember { mutableStateOf(false) }
+    var showSocialAppDialog by remember { mutableStateOf(false) }
+    var showBrowserSafetyDialog by remember { mutableStateOf(false) }
+    var showAlbumsSafetyDialog by remember { mutableStateOf(false) }
+    var showCallSmsSafetyDialog by remember { mutableStateOf(false) }
+    var showUsageSafetyDialog by remember { mutableStateOf(false) }
 
     val usedMinutesToday = apps.sumOf { it.usageTodayMinutes }
     val totalLimitMinutes = child.weekdayLimitMinutes + child.bonusMinutesToday
@@ -275,6 +306,102 @@ fun DashboardScreen(
             isHindi = isHindi,
             onToggleAntiUninstall = onToggleAntiUninstall,
             onDismiss = { showAntiUninstallDialog = false }
+        )
+    }
+
+    if (showCameraSnapshotDialog) {
+        CameraSnapshotDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showCameraSnapshotDialog = false }
+        )
+    }
+
+    if (showScreenSnapshotDialog) {
+        ScreenSnapshotDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showScreenSnapshotDialog = false }
+        )
+    }
+
+    if (showLivePaintingDialog) {
+        LivePaintingDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showLivePaintingDialog = false }
+        )
+    }
+
+    if (showDeviceActivityDialog) {
+        DeviceActivityDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showDeviceActivityDialog = false }
+        )
+    }
+
+    if (showCheckPermissionsDialog) {
+        CheckPermissionsDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showCheckPermissionsDialog = false }
+        )
+    }
+
+    if (showHowToOpenHiddenAppDialog) {
+        HowToOpenHiddenAppDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showHowToOpenHiddenAppDialog = false }
+        )
+    }
+
+    if (showNoticeBroadcastDialog) {
+        ParentNoticeBroadcastDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showNoticeBroadcastDialog = false }
+        )
+    }
+
+    if (showSocialAppDialog) {
+        SocialAppDetectionDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showSocialAppDialog = false }
+        )
+    }
+
+    if (showBrowserSafetyDialog) {
+        BrowserSafetyDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showBrowserSafetyDialog = false }
+        )
+    }
+
+    if (showAlbumsSafetyDialog) {
+        AlbumsSafetyDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showAlbumsSafetyDialog = false }
+        )
+    }
+
+    if (showCallSmsSafetyDialog) {
+        CallAndSmsSafetyDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showCallSmsSafetyDialog = false }
+        )
+    }
+
+    if (showUsageSafetyDialog) {
+        UsageSafetyDialog(
+            child = child,
+            isHindi = isHindi,
+            onDismiss = { showUsageSafetyDialog = false }
         )
     }
 
@@ -837,7 +964,7 @@ fun DashboardScreen(
             }
         }
 
-        // 6. FLASHGET LIVE MONITORING SECTION (REMOTE CAMERA, SCREEN MIRRORING, ONE-WAY AUDIO)
+        // 6. FLASHGET LIVE MONITORING SECTION (REMOTE CAMERA, SCREEN MIRRORING, ONE-WAY AUDIO, SNAPSHOTS, LIVE PAINTING)
         item {
             Card(
                 modifier = Modifier
@@ -854,17 +981,17 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (isHindi) "लाइव निगरानी" else "Live Monitoring",
+                            text = if (isHindi) "लाइव निगरानी व रिमोट टूल्स" else "Live Monitoring & Remote Tools",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
                             color = NaturalTextPrimary
                         )
 
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Monitoring Settings",
-                            tint = NaturalTextTertiary,
-                            modifier = Modifier.size(20.dp)
+                        Text(
+                            text = if (isHindi) "रियल-टाइम सक्रिय" else "Real-time Active",
+                            color = NaturalGreen700,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
@@ -886,7 +1013,7 @@ fun DashboardScreen(
                         // 2. Screen Mirroring
                         LiveMonitoringButton(
                             icon = Icons.Default.ScreenShare,
-                            label = if (isHindi) "स्क्रीन मिररिंग" else "Screen Mirroring",
+                            label = if (isHindi) "स्क्रीन मिररिंग" else "Screen Mirror",
                             iconTint = Color(0xFF8B5CF6),
                             bgTint = Color(0xFFF5F3FF),
                             onClick = { showScreenMirrorDialog = true }
@@ -899,6 +1026,139 @@ fun DashboardScreen(
                             iconTint = Color(0xFF10B981),
                             bgTint = Color(0xFFECFDF5),
                             onClick = { showAudioDialog = true }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        // 4. Camera Snapshot
+                        LiveMonitoringButton(
+                            icon = Icons.Default.CameraAlt,
+                            label = if (isHindi) "कैमरा स्नैप" else "Camera Snap",
+                            iconTint = Color(0xFF0284C7),
+                            bgTint = Color(0xFFE0F2FE),
+                            onClick = { showCameraSnapshotDialog = true }
+                        )
+
+                        // 5. Screen Snapshot
+                        LiveMonitoringButton(
+                            icon = Icons.Default.PhoneAndroid,
+                            label = if (isHindi) "स्क्रीन स्नैप" else "Screen Snap",
+                            iconTint = Color(0xFFD97706),
+                            bgTint = Color(0xFFFEF3C7),
+                            onClick = { showScreenSnapshotDialog = true }
+                        )
+
+                        // 6. Live Painting
+                        LiveMonitoringButton(
+                            icon = Icons.Default.Brush,
+                            label = if (isHindi) "लाइव पेंटिंग" else "Live Paint",
+                            iconTint = Color(0xFFEC4899),
+                            bgTint = Color(0xFFFCE7F3),
+                            onClick = { showLivePaintingDialog = true }
+                        )
+                    }
+                }
+            }
+        }
+
+        // 6B. QUICK SAFETY & DEVICE DIAGNOSTICS HUB
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(1.dp, RoundedCornerShape(22.dp))
+                    .border(1.dp, NaturalBorder, RoundedCornerShape(22.dp)),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = NaturalSurface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = if (isHindi) "सुरक्षा व डायग्नोस्टिक्स टूल्स" else "Safety & Device Diagnostics",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = NaturalTextPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        LiveMonitoringButton(
+                            icon = Icons.Default.Campaign,
+                            label = if (isHindi) "नोटिस भेजें" else "Send Notice",
+                            iconTint = Color(0xFF0284C7),
+                            bgTint = Color(0xFFE0F2FE),
+                            onClick = { showNoticeBroadcastDialog = true }
+                        )
+
+                        LiveMonitoringButton(
+                            icon = Icons.Default.Timeline,
+                            label = if (isHindi) "डिवाइस एक्टिविटी" else "Activity",
+                            iconTint = NaturalGreen700,
+                            bgTint = NaturalGreen100,
+                            onClick = { showDeviceActivityDialog = true }
+                        )
+
+                        LiveMonitoringButton(
+                            icon = Icons.Default.CheckCircle,
+                            label = if (isHindi) "परमिशन जांच" else "Permissions",
+                            iconTint = Color(0xFF059669),
+                            bgTint = Color(0xFFD1FAE5),
+                            onClick = { showCheckPermissionsDialog = true }
+                        )
+
+                        LiveMonitoringButton(
+                            icon = Icons.Default.Help,
+                            label = if (isHindi) "छिपा ऐप खोलें" else "Hidden App",
+                            iconTint = EarthAmber600,
+                            bgTint = EarthAmber100,
+                            onClick = { showHowToOpenHiddenAppDialog = true }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        LiveMonitoringButton(
+                            icon = Icons.Default.Security,
+                            label = if (isHindi) "सोशल ऐप्स" else "Social Apps",
+                            iconTint = Color(0xFFE1306C),
+                            bgTint = Color(0xFFFCE7F3),
+                            onClick = { showSocialAppDialog = true }
+                        )
+
+                        LiveMonitoringButton(
+                            icon = Icons.Default.Public,
+                            label = if (isHindi) "ब्राउज़र सेफ्टी" else "Browser",
+                            iconTint = Color(0xFF0284C7),
+                            bgTint = Color(0xFFE0F2FE),
+                            onClick = { showBrowserSafetyDialog = true }
+                        )
+
+                        LiveMonitoringButton(
+                            icon = Icons.Default.PhotoAlbum,
+                            label = if (isHindi) "एल्बम सेफ्टी" else "Albums",
+                            iconTint = Color(0xFF8B5CF6),
+                            bgTint = Color(0xFFF5F3FF),
+                            onClick = { showAlbumsSafetyDialog = true }
+                        )
+
+                        LiveMonitoringButton(
+                            icon = Icons.Default.Call,
+                            label = if (isHindi) "कॉल व SMS" else "Call & SMS",
+                            iconTint = Terracotta700,
+                            bgTint = Terracotta100,
+                            onClick = { showCallSmsSafetyDialog = true }
                         )
                     }
                 }

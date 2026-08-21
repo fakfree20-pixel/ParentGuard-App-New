@@ -87,6 +87,10 @@ import com.example.data.model.ChildProfile
 import com.example.ui.components.AddChildDialog
 import com.example.ui.components.ChildAvatarCircle
 import com.example.ui.components.PinKeypadDialog
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Shield
 import com.example.ui.screens.ActivityLogScreen
 import com.example.ui.screens.AppsControlScreen
 import com.example.ui.screens.AuthScreen
@@ -94,8 +98,12 @@ import com.example.ui.screens.ChildDevicePairingScreen
 import com.example.ui.screens.ChildModeScreen
 import com.example.ui.screens.ChildPermissionsScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.DeviceHubScreen
+import com.example.ui.screens.NoticeScreen
 import com.example.ui.screens.ParentDeviceBindingDialog
+import com.example.ui.screens.ParentProfileMeScreen
 import com.example.ui.screens.RewardsScreen
+import com.example.ui.screens.SafetyHubScreen
 import com.example.ui.screens.ScheduleRulesScreen
 import com.example.ui.screens.WelcomeModeScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -591,10 +599,11 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                 ) {
                     val navItems = listOf(
                         Triple(0, Icons.Default.Dashboard, if (isHindi) "होम" else "Home"),
-                        Triple(1, Icons.Default.Apps, if (isHindi) "ऐप्स" else "Apps"),
-                        Triple(2, Icons.Default.Schedule, if (isHindi) "शेड्यूल" else "Schedule"),
-                        Triple(3, Icons.Default.EmojiEvents, if (isHindi) "इनाम" else "Rewards"),
-                        Triple(4, Icons.Default.History, if (isHindi) "रिपोर्ट्स" else "Reports")
+                        Triple(1, Icons.Default.Shield, if (isHindi) "सुरक्षा" else "Safety"),
+                        Triple(2, Icons.Default.Campaign, if (isHindi) "नोटिस" else "Notice"),
+                        Triple(3, Icons.Default.PhoneAndroid, if (isHindi) "डिवाइस" else "Device"),
+                        Triple(4, Icons.Default.History, if (isHindi) "लॉग्स" else "Logs"),
+                        Triple(5, Icons.Default.Person, if (isHindi) "प्रोफाइल" else "Me")
                     )
 
                     navItems.forEach { (index, icon, label) ->
@@ -602,11 +611,11 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                         NavigationBarItem(
                             selected = isSelected,
                             onClick = { selectedNavTab = index },
-                            icon = { Icon(icon, contentDescription = label) },
+                            icon = { Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp)) },
                             label = {
                                 Text(
                                     text = label,
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             },
@@ -663,34 +672,36 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                     },
                     onClearCallLogs = { viewModel.clearCallLogs() }
                 )
-                1 -> AppsControlScreen(
-                    apps = apps,
-                    isHindi = isHindi,
-                    onToggleBlock = { app -> viewModel.toggleAppBlock(app) },
-                    onSetAppLimit = { ruleId, limit -> viewModel.setAppLimit(ruleId, limit) },
-                    onToggleAlwaysAllowed = { ruleId, isAllowed -> viewModel.toggleAlwaysAllowed(ruleId, isAllowed) }
-                )
-                2 -> ScheduleRulesScreen(
+                1 -> SafetyHubScreen(
                     child = child,
-                    webRules = webRules,
+                    appsList = apps,
                     isHindi = isHindi,
-                    onUpdateChild = { updated -> viewModel.updateChildSettings(updated) },
-                    onAddWebRule = { domain, category -> viewModel.addWebFilter(domain, category) },
-                    onDeleteWebRule = { ruleId -> viewModel.removeWebFilter(ruleId) }
+                    onToggleAppBlock = { app -> viewModel.toggleAppBlock(app) },
+                    onSetAppLimit = { ruleId, limit -> viewModel.setAppLimit(ruleId, limit) },
+                    onUpdateChildSettings = { updated -> viewModel.updateChildSettings(updated) }
                 )
-                3 -> RewardsScreen(
-                    tasks = tasks,
-                    childName = child.name,
-                    bonusEarnedToday = child.bonusMinutesToday,
-                    isHindi = isHindi,
-                    onAddTask = { title, titleHi, mins -> viewModel.addRewardTask(title, titleHi, mins) },
-                    onApproveTask = { task -> viewModel.approveTaskReward(task) },
-                    onDeleteTask = { taskId -> viewModel.deleteTask(taskId) }
+                2 -> NoticeScreen(
+                    child = child,
+                    isHindi = isHindi
+                )
+                3 -> DeviceHubScreen(
+                    child = child,
+                    isHindi = isHindi
                 )
                 4 -> ActivityLogScreen(
                     logs = logs,
                     isHindi = isHindi,
                     onClearLogs = { viewModel.clearLogs() }
+                )
+                5 -> ParentProfileMeScreen(
+                    user = currentUser,
+                    allChildren = allChildren,
+                    selectedChildId = child.id,
+                    isHindi = isHindi,
+                    onSelectChild = { viewModel.selectChild(it) },
+                    onToggleLanguage = { viewModel.toggleLanguage() },
+                    onPinChange = { newPin -> viewModel.updateParentPin(newPin) },
+                    onOpenPairingScreen = { showParentBindingDialog = true }
                 )
             }
         }
