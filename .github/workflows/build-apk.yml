@@ -26,16 +26,13 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+          cache: 'gradle'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK Licenses & Install Platform
+      - name: Setup Android SDK Licenses
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses || yes | sdkmanager --licenses || true
 
-      - name: Setup Environment Files
+      - name: Setup Environment & Keystores
         run: |
           # Create .env if missing
           touch .env
@@ -43,9 +40,18 @@ jobs:
             cp .env.example .env
           fi
 
-          # Generate keystores
-          keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US"
+          # Decode or generate debug.keystore
+          if [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore || true
+          fi
+          if [ ! -f "debug.keystore" ]; then
+            keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
+          fi
+
+          # Generate release keystore if needed
+          keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US" || true
+
+          # Ensure app directory has copies
           mkdir -p app
           cp debug.keystore app/debug.keystore || true
           cp my-upload-key.jks app/my-upload-key.jks || true
@@ -57,7 +63,16 @@ jobs:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
           chmod +x ./gradlew || true
-          ./gradlew :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace || ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Build Release APK (Optional)
+        continue-on-error: true
+        env:
+          STORE_PASSWORD: android
+          KEY_PASSWORD: android
+          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
+        run: |
+          ./gradlew :app:assembleRelease --stacktrace --no-daemon
 
       - name: Prepare APK Outputs
         run: |
@@ -71,6 +86,7 @@ jobs:
           name: ParentGuard-APKs
           path: build-apks/*.apk
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Publish to GitHub Releases
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
@@ -82,3 +98,4 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
