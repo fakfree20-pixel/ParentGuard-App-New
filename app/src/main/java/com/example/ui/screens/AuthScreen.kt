@@ -92,6 +92,7 @@ import com.example.ui.theme.NaturalSurfaceVariant
 import com.example.ui.theme.NaturalTextPrimary
 import com.example.ui.theme.NaturalTextSecondary
 import com.example.ui.theme.Terracotta700
+import com.example.ui.theme.EarthAmber600
 
 @Composable
 fun AuthScreen(
@@ -99,6 +100,7 @@ fun AuthScreen(
     onToggleLanguage: () -> Unit,
     onLogin: (String, String, Boolean) -> Boolean,
     onRegister: (String, String, String) -> Boolean,
+    onGoogleLogin: (String, String) -> Boolean = { _, _ -> true },
     onBackToModeSelect: () -> Unit,
     onSwitchToChildMode: () -> Unit
 ) {
@@ -111,10 +113,201 @@ fun AuthScreen(
     var rememberMe by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var showGoogleAccountPicker by remember { mutableStateOf(false) }
+    var customGoogleEmail by remember { mutableStateOf("") }
     var forgotEmail by remember { mutableStateOf("") }
     var forgotSentSuccess by remember { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
+
+    // Google / Gmail Account Picker Dialog
+    if (showGoogleAccountPicker) {
+        AlertDialog(
+            onDismissRequest = { showGoogleAccountPicker = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDADCE0)),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "G",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 20.sp,
+                                color = Color(0xFF4285F4)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isHindi) "Google खाते से साइन इन करें" else "Sign in with Google",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = NaturalTextPrimary
+                    )
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = if (isHindi)
+                            "ParentGuard से कनेक्ट करने के लिए अपना Gmail खाता चुनें। लॉगिन के बाद आपको 10-अंकीय कोड और इन्वाइट लिंक मिलेगा।"
+                        else
+                            "Choose an account to continue to ParentGuard. You will receive a 10-digit binding code & invite link.",
+                        fontSize = 12.sp,
+                        color = NaturalTextSecondary,
+                        lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Primary Gmail Account Item 1
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showGoogleAccountPicker = false
+                                onGoogleLogin("musahidraza78600@gmail.com", "Musahid Raza")
+                            },
+                        colors = CardDefaults.cardColors(containerColor = NaturalSurfaceVariant),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = NaturalGreen700,
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "M",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Musahid Raza",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = NaturalTextPrimary
+                                )
+                                Text(
+                                    text = "musahidraza78600@gmail.com",
+                                    fontSize = 11.sp,
+                                    color = NaturalGreen700
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Account Item 2
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showGoogleAccountPicker = false
+                                onGoogleLogin("parent.guardian@gmail.com", "Parent Guardian")
+                            },
+                        colors = CardDefaults.cardColors(containerColor = NaturalSurfaceVariant),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = EarthAmber600,
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "P",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Parent Guardian",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = NaturalTextPrimary
+                                )
+                                Text(
+                                    text = "parent.guardian@gmail.com",
+                                    fontSize = 11.sp,
+                                    color = NaturalTextSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Custom Gmail entry
+                    Text(
+                        text = if (isHindi) "या अन्य Gmail दर्ज करें:" else "Or enter custom Gmail:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NaturalTextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = customGoogleEmail,
+                        onValueChange = { customGoogleEmail = it },
+                        placeholder = { Text("mygmail@gmail.com") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NaturalGreen700
+                        )
+                    )
+                    if (customGoogleEmail.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                val clean = customGoogleEmail.trim()
+                                val name = clean.substringBefore("@").replace(".", " ")
+                                showGoogleAccountPicker = false
+                                onGoogleLogin(clean, name)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = NaturalGreen700),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(if (isHindi) "इस Gmail से आगे बढ़ें" else "Continue with this Gmail")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showGoogleAccountPicker = false }) {
+                    Text(if (isHindi) "रद्द करें" else "Cancel", color = NaturalTextSecondary)
+                }
+            }
+        )
+    }
 
     if (showForgotPasswordDialog) {
         AlertDialog(
@@ -229,7 +422,7 @@ fun AuthScreen(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = painterResource(id = R.drawable.user_profile_logo_1787259898289),
+                        painter = painterResource(id = R.drawable.app_profile_logo_1787334102049),
                         contentDescription = "FlashGet Kids Logo",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -617,33 +810,67 @@ fun AuthScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Quick One-Tap Test / Demo Login
+            // Google / Gmail Sign In Button (Prominent)
             Button(
                 onClick = {
-                    onLogin("musahidraza78600@gmail.com", "123456", true)
+                    showGoogleAccountPicker = true
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
-                    .testTag("quick_demo_login_button"),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = NaturalGreen100)
+                    .height(50.dp)
+                    .border(1.dp, Color(0xFFDADCE0), RoundedCornerShape(14.dp))
+                    .testTag("google_gmail_login_button"),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = NaturalTextPrimary
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
             ) {
-                Icon(
-                    Icons.Default.Shield,
-                    contentDescription = null,
-                    tint = NaturalGreen700,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isHindi) "⚡ त्वरित पैरेंट लॉगिन (musahidraza78600@gmail.com)" else "⚡ Fast Demo Login (musahidraza78600@gmail.com)",
-                    color = NaturalGreen900,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "G",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 19.sp,
+                        color = Color(0xFF4285F4)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isHindi) "Google / जीमेल से लॉगिन करें" else "Sign in with Google Account",
+                        color = Color(0xFF3C4043),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Explanation badge
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = NaturalGreen100.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = NaturalGreen700,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isHindi) "Gmail से लॉगिन करने पर 10-अंकीय कोड और डाउनलोड लिंक मिलेगा।" else "Login with Gmail to get 10-digit code & invite link.",
+                        fontSize = 11.sp,
+                        color = NaturalGreen900
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -656,7 +883,7 @@ fun AuthScreen(
                 Icon(Icons.Default.ChildCare, contentDescription = null, tint = NaturalTextSecondary, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isHindi) "यह बच्चे का फोन है? यहाँ टैप करें" else "Setting up child's phone? Tap here",
+                    text = if (isHindi) "यह बच्चे का फोन है? यहाँ 10-अंकीय कोड डालें" else "Setting up child's phone? Enter 10-digit code here",
                     fontSize = 12.sp,
                     color = NaturalTextSecondary,
                     fontWeight = FontWeight.Medium

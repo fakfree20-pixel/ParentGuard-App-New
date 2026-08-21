@@ -16,6 +16,7 @@ import com.example.data.model.ScreenRewardTask
 import com.example.data.model.UserAccount
 import com.example.data.model.WebFilterRule
 import com.example.data.model.WhatsAppConversation
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,14 +43,21 @@ class ParentalControlViewModel(application: Application) : AndroidViewModel(appl
     private val repository: ParentalRepository = ParentalRepository(AppDatabase.getDatabase(application).parentalControlDao())
     private val prefs = application.getSharedPreferences("parent_guard_prefs", android.content.Context.MODE_PRIVATE)
 
-    // User Authentication State (FlashGet Kids style)
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.ensureDataPopulated()
+        }
+    }
+
+    // User Authentication State (ParentGuard Gmail & 10-Digit Code)
     private val _currentUser = MutableStateFlow<UserAccount?>(
         UserAccount(
             email = prefs.getString("user_email", "musahidraza78600@gmail.com") ?: "musahidraza78600@gmail.com",
-            fullName = prefs.getString("user_name", "Parent Admin") ?: "Parent Admin",
+            fullName = prefs.getString("user_name", "Parent Guardian") ?: "Parent Guardian",
             isLoggedIn = prefs.getBoolean("is_logged_in", true),
-            accountType = "FlashGet Pro Lifetime",
-            masterBindingCode = "794 821 305",
+            accountType = "Pro Premium Lifetime",
+            masterBindingCode = "9842 761 530", // 10-Digit Master Code
+            inviteLink = "https://parentguard.app/download?code=9842761530",
             boundDeviceCount = 2
         )
     )
@@ -65,15 +73,41 @@ class ParentalControlViewModel(application: Application) : AndroidViewModel(appl
         _currentAppMode.value = mode
     }
 
+    // Google Sign-In with Gmail
+    fun loginWithGoogle(gmail: String = "musahidraza78600@gmail.com", name: String = "Musahid Raza"): Boolean {
+        val code = generateBindingCode()
+        val cleanDigits = code.replace(" ", "")
+        val user = UserAccount(
+            email = gmail.trim().ifBlank { "parent.guardian@gmail.com" },
+            fullName = name.trim().ifBlank { "Parent Guardian" },
+            isLoggedIn = true,
+            accountType = "Pro Premium Google Verified",
+            masterBindingCode = code,
+            inviteLink = "https://parentguard.app/download?code=$cleanDigits",
+            boundDeviceCount = 2
+        )
+        _currentUser.value = user
+        prefs.edit()
+            .putString("user_email", user.email)
+            .putString("user_name", user.fullName)
+            .putBoolean("is_logged_in", true)
+            .apply()
+        _currentAppMode.value = AppMode.PARENT_MAIN
+        return true
+    }
+
     // Auth actions
     fun login(email: String, pass: String, rememberMe: Boolean = true): Boolean {
         if (email.isNotBlank() && pass.length >= 4) {
+            val code = generateBindingCode()
+            val cleanDigits = code.replace(" ", "")
             val user = UserAccount(
                 email = email.trim(),
                 fullName = email.substringBefore("@").replace(".", " ").capitalizeWords(),
                 isLoggedIn = true,
-                accountType = "FlashGet Pro Lifetime",
-                masterBindingCode = generateBindingCode(),
+                accountType = "Pro Premium Lifetime",
+                masterBindingCode = code,
+                inviteLink = "https://parentguard.app/download?code=$cleanDigits",
                 boundDeviceCount = 2
             )
             _currentUser.value = user
@@ -90,12 +124,15 @@ class ParentalControlViewModel(application: Application) : AndroidViewModel(appl
 
     fun register(name: String, email: String, pass: String): Boolean {
         if (name.isNotBlank() && email.isNotBlank() && pass.length >= 4) {
+            val code = generateBindingCode()
+            val cleanDigits = code.replace(" ", "")
             val user = UserAccount(
                 email = email.trim(),
                 fullName = name.trim(),
                 isLoggedIn = true,
-                accountType = "FlashGet Pro Lifetime",
-                masterBindingCode = generateBindingCode(),
+                accountType = "Pro Premium Lifetime",
+                masterBindingCode = code,
+                inviteLink = "https://parentguard.app/download?code=$cleanDigits",
                 boundDeviceCount = 0
             )
             _currentUser.value = user
@@ -116,11 +153,30 @@ class ParentalControlViewModel(application: Application) : AndroidViewModel(appl
         _currentAppMode.value = AppMode.WELCOME_MODE_SELECTION
     }
 
+    // 10-Digit Code Generation (e.g. 9842 761 530)
     private fun generateBindingCode(): String {
-        val part1 = (100..999).random()
-        val part2 = (100..999).random()
-        val part3 = (100..999).random()
+        val part1 = (1000..9999).random() // 4 digits
+        val part2 = (100..999).random()   // 3 digits
+        val part3 = (100..999).random()   // 3 digits
         return "$part1 $part2 $part3"
+    }
+
+    fun getInviteLink(): String {
+        val code = _currentUser.value?.masterBindingCode?.replace(" ", "") ?: "9842761530"
+        return "https://parentguard.app/download?code=$code"
+    }
+
+    fun getShareableInviteText(isHindi: Boolean): String {
+        val user = _currentUser.value
+        val code = user?.masterBindingCode ?: "9842 761 530"
+        val link = getInviteLink()
+        val email = user?.email ?: "musahidraza78600@gmail.com"
+
+        return if (isHindi) {
+            "👨‍👩‍👧‍👦 *ParentGuard पेरेंटल कंट्रोल इन्वाइट*\n\nनमस्ते! आपके अभिभावक ($email) ने आपको ParentGuard से जुड़ने के लिए आमंत्रित किया है।\n\n📲 *1. ऐप डाउनलोड लिंक:* $link\n🔑 *2. आपका 10-अंकीय बाइंडिंग कोड:* *$code*\n\n*सेटअप कैसे करें:*\n1. ऊपर दिए लिंक से ऐप डाउनलोड करके इंस्टॉल करें।\n2. 'Child Device / बच्चे का फ़ोन' विकल्प चुनें।\n3. यह 10-अंकीय कोड डालें और सुरक्षा सक्रिय करें।"
+        } else {
+            "👨‍👩‍👧‍👦 *ParentGuard Parental Control Invite*\n\nHello! Your parent ($email) has invited you to connect via ParentGuard.\n\n📲 *1. App Download Link:* $link\n🔑 *2. Your 10-Digit Binding Code:* *$code*\n\n*Setup Instructions:*\n1. Download and install the app from the link above.\n2. Select 'Child's Phone' mode.\n3. Enter this 10-digit code to enable parental safety."
+        }
     }
 
     private fun String.capitalizeWords(): String = split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
@@ -392,7 +448,7 @@ class ParentalControlViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    fun addChildProfile(name: String, age: Int, avatarIndex: Int, dailyLimitMinutes: Int, deviceModel: String = "Infinix X6823C") {
+    fun addChildProfile(name: String, age: Int, avatarIndex: Int = 0, dailyLimitMinutes: Int = 120, deviceModel: String = "Infinix X6823C") {
         viewModelScope.launch {
             val newProfile = ChildProfile(
                 name = name,
@@ -543,6 +599,77 @@ class ParentalControlViewModel(application: Application) : AndroidViewModel(appl
     fun deleteCallLog(callLogId: Long) {
         viewModelScope.launch {
             repository.deleteCallLog(callLogId)
+        }
+    }
+
+    // App Hide / Stealth Mode & Remote App Launcher
+    private val _activeRemoteApp = MutableStateFlow<Pair<String, String>?>(null) // Pair(packageName, appName)
+    val activeRemoteApp: StateFlow<Pair<String, String>?> = _activeRemoteApp.asStateFlow()
+
+    private val _remoteNavLastEvent = MutableStateFlow<String?>(null)
+    val remoteNavLastEvent: StateFlow<String?> = _remoteNavLastEvent.asStateFlow()
+
+    fun toggleAppHidden(isHidden: Boolean) {
+        val childId = _selectedChildId.value ?: return
+        viewModelScope.launch {
+            repository.setAppHidden(childId, isHidden)
+        }
+    }
+
+    fun launchRemoteApp(packageName: String, appName: String) {
+        val childId = _selectedChildId.value ?: return
+        _activeRemoteApp.value = Pair(packageName, appName)
+        viewModelScope.launch {
+            repository.setRemoteActiveApp(childId, packageName, appName)
+        }
+    }
+
+    fun stopRemoteApp() {
+        val childId = _selectedChildId.value ?: return
+        val current = _activeRemoteApp.value
+        _activeRemoteApp.value = null
+        viewModelScope.launch {
+            repository.setRemoteActiveApp(childId, "", "")
+            if (current != null) {
+                repository.addActivityLog(
+                    ActivityLogItem(
+                        childId = childId,
+                        type = "REMOTE_LAUNCH",
+                        title = "Closed Remote ${current.second}",
+                        titleHindi = "रिमोट ऐप ${current.second} बंद किया",
+                        description = "Parent closed remote app session from parent dashboard",
+                        descriptionHindi = "माता-पिता ने रिमोट ऐप सत्र समाप्त किया"
+                    )
+                )
+            }
+        }
+    }
+
+    fun sendRemoteNavigationCommand(command: String) {
+        _remoteNavLastEvent.value = command
+        val childId = _selectedChildId.value ?: return
+        val appName = _activeRemoteApp.value?.second ?: "Child App"
+        viewModelScope.launch {
+            val (title, titleHi) = when (command) {
+                "BACK" -> "Remote Back Pressed" to "रिमोट बैक बटन दबाया"
+                "HOME" -> "Remote Home Pressed" to "रिमोट होम बटन दबाया"
+                "RECENTS" -> "Remote Recents Opened" to "रिमोट रीसेंट्स खोला"
+                "SCROLL_UP" -> "Remote Scrolled Up" to "रिमोट ऊपर स्क्रॉल किया"
+                "SCROLL_DOWN" -> "Remote Scrolled Down" to "रिमोट नीचे स्क्रॉल किया"
+                "VOLUME_UP" -> "Remote Volume Increased" to "रिमोट वॉल्यूम बढ़ाया"
+                "VOLUME_DOWN" -> "Remote Volume Decreased" to "रिमोट वॉल्यूम घटाया"
+                else -> "Remote Command: $command" to "रिमोट कमांड: $command"
+            }
+            repository.addActivityLog(
+                ActivityLogItem(
+                    childId = childId,
+                    type = "REMOTE_LAUNCH",
+                    title = "$title ($appName)",
+                    titleHindi = "$titleHi ($appName)",
+                    description = "Parent executed remote gesture $command on child device",
+                    descriptionHindi = "माता-पिता ने बच्चे के फोन पर रिमोट कमांड $command भेजी"
+                )
+            )
         }
     }
 

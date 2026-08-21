@@ -1,13 +1,16 @@
 package com.example.ui.screens
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -34,14 +37,18 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DataUsage
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -50,6 +57,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -68,9 +76,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -78,9 +89,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import com.example.R
 import com.example.data.model.DevicePermissionItem
 import com.example.ui.theme.NaturalBg
@@ -159,7 +167,7 @@ fun FlashGetQRCodeGraphic(modifier: Modifier = Modifier, code: String = "794 821
 }
 
 /**
- * Screen on Parent's Phone showing the 9-Digit Binding Code & QR Code
+ * Screen on Parent's Phone showing the 10-Digit Binding Code, QR Code & Shareable Download Link
  */
 @Composable
 fun ParentDeviceBindingDialog(
@@ -168,11 +176,22 @@ fun ParentDeviceBindingDialog(
     onDismiss: () -> Unit,
     onAddChildDirectly: (name: String, age: Int) -> Unit
 ) {
+    val context = LocalContext.current
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
     var isCopied by remember { mutableStateOf(false) }
+    var isLinkCopied by remember { mutableStateOf(false) }
     var childName by remember { mutableStateOf("") }
     var childAge by remember { mutableStateOf("9") }
     var showManualAdd by remember { mutableStateOf(false) }
+
+    val cleanDigits = bindingCode.replace(" ", "")
+    val downloadLink = "https://parentguard.app/download?code=$cleanDigits"
+
+    val shareText = if (isHindi) {
+        "👨‍👩‍👧‍👦 *ParentGuard पेरेंटल कंट्रोल इन्वाइट*\n\nनमस्ते! आपके माता-पिता ने आपको ParentGuard से जुड़ने के लिए आमंत्रित किया है।\n\n📲 *1. ऐप डाउनलोड लिंक:* $downloadLink\n🔑 *2. आपका 10-अंकीय बाइंडिंग कोड:* *$bindingCode*\n\n*सेटअप कैसे करें:*\n1. ऊपर दिए लिंक से ऐप इंस्टॉल करें।\n2. 'Child Device / बच्चे का फ़ोन' चुनें।\n3. यह 10-अंकीय कोड डालें और सुरक्षा सक्रिय करें।"
+    } else {
+        "👨‍👩‍👧‍👦 *ParentGuard Parental Control Invite*\n\nHello! Your parent has invited you to connect via ParentGuard.\n\n📲 *1. App Download Link:* $downloadLink\n🔑 *2. Your 10-Digit Binding Code:* *$bindingCode*\n\n*Setup Instructions:*\n1. Download and install the app from the link above.\n2. Select 'Child's Phone' mode.\n3. Enter this 10-digit code to enable parental safety."
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -205,9 +224,9 @@ fun ParentDeviceBindingDialog(
             ) {
                 Text(
                     text = if (isHindi)
-                        "बच्चे के फ़ोन पर FlashGet Kids खोलें और यह 9-अंकीय कोड डालें या QR कोड स्कैन करें:"
+                        "बच्चे के फ़ोन पर ऐप डाउनलोड करने के लिए लिंक शेयर करें या 10-अंकीय कोड दर्ज करें:"
                     else
-                        "Open FlashGet Kids on your child's phone and enter this 9-digit code or scan the QR code:",
+                        "Share the download link to your child's phone or enter this 10-digit code:",
                     fontSize = 13.sp,
                     color = NaturalTextSecondary,
                     textAlign = TextAlign.Center
@@ -220,7 +239,7 @@ fun ParentDeviceBindingDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // 9-Digit Pairing Code Box with Copy Button
+                // 10-Digit Pairing Code Box with Copy Button
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = NaturalSurfaceVariant),
@@ -235,7 +254,7 @@ fun ParentDeviceBindingDialog(
                     ) {
                         Column {
                             Text(
-                                text = if (isHindi) "9-अंकीय बाइंडिंग कोड" else "9-Digit Binding Code",
+                                text = if (isHindi) "10-अंकीय बाइंडिंग कोड (10-Digit Code)" else "10-Digit Binding Code",
                                 fontSize = 10.sp,
                                 color = NaturalTextSecondary,
                                 fontWeight = FontWeight.Bold
@@ -272,6 +291,110 @@ fun ParentDeviceBindingDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Share Invite & Download Link Section
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, NaturalGreen700.copy(alpha = 0.3f), RoundedCornerShape(14.dp)),
+                    colors = CardDefaults.cardColors(containerColor = NaturalGreen100.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Share, contentDescription = null, tint = NaturalGreen700, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isHindi) "इन्वाइट व डाउनलोड लिंक शेयर करें" else "Share Invite & Download Link",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NaturalGreen900
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = downloadLink,
+                            fontSize = 11.sp,
+                            color = NaturalGreen700,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // WhatsApp Share Button
+                            Button(
+                                onClick = {
+                                    try {
+                                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, shareText)
+                                            setPackage("com.whatsapp")
+                                        }
+                                        context.startActivity(sendIntent)
+                                    } catch (e: Exception) {
+                                        val chooser = Intent.createChooser(
+                                            Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, shareText)
+                                            },
+                                            "Share ParentGuard Invite"
+                                        )
+                                        context.startActivity(chooser)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = NaturalGreen700),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = if (isHindi) "WhatsApp" else "WhatsApp", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            // Copy Link Button
+                            OutlinedButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(shareText))
+                                    isLinkCopied = true
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                val buttonIcon = if (isLinkCopied) Icons.Default.Check else Icons.Default.ContentCopy
+                                val buttonText = when {
+                                    isLinkCopied && isHindi -> "कॉपी हुआ"
+                                    isLinkCopied -> "Copied"
+                                    isHindi -> "लिंक कॉपी"
+                                    else -> "Copy Link"
+                                }
+                                Icon(
+                                    imageVector = buttonIcon,
+                                    contentDescription = null,
+                                    tint = NaturalGreen700,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = buttonText,
+                                    fontSize = 11.sp,
+                                    color = NaturalGreen700,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Steps list
                 Column(
                     modifier = Modifier
@@ -290,9 +413,9 @@ fun ParentDeviceBindingDialog(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (isHindi)
-                            "1. बच्चे के फोन पर FlashGet Kids खोलें\n2. 'बच्चे का फ़ोन (Kids Device)' चुनें\n3. यह 9-अंकीय कोड डालें और अनुमतियां दें"
+                            "1. बच्चे के फोन पर ऊपर दिए लिंक से ऐप इंस्टॉल करें\n2. 'बच्चे का फ़ोन (Kids Device)' चुनें\n3. यह 10-अंकीय कोड डालें और सुरक्षा सक्रिय करें"
                         else
-                            "1. Open FlashGet Kids on child's device\n2. Select 'Child's Phone'\n3. Enter this 9-digit code and allow permissions",
+                            "1. Install app on child's phone from the invite link\n2. Select 'Child's Phone'\n3. Enter this 10-digit code and allow safety permissions",
                         fontSize = 11.sp,
                         color = NaturalTextSecondary,
                         lineHeight = 16.sp
@@ -363,7 +486,7 @@ fun ParentDeviceBindingDialog(
 }
 
 /**
- * Screen on Child's Phone to Enter 9-Digit Code and Bind
+ * Screen on Child's Phone to Enter 10-Digit Code and Bind
  */
 @Composable
 fun ChildDevicePairingScreen(
@@ -372,7 +495,7 @@ fun ChildDevicePairingScreen(
     onPairWithCode: (code: String, name: String, age: Int) -> Boolean,
     onBack: () -> Unit
 ) {
-    var pairingCodeInput by remember { mutableStateOf("794821305") }
+    var pairingCodeInput by remember { mutableStateOf("9842761530") }
     var childName by remember { mutableStateOf("Aarav's Infinix") }
     var childAge by remember { mutableStateOf("9") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -410,7 +533,7 @@ fun ChildDevicePairingScreen(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = painterResource(id = R.drawable.user_profile_logo_1787259898289),
+                        painter = painterResource(id = R.drawable.app_profile_logo_1787334102049),
                         contentDescription = "FlashGet Kids Logo",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -419,7 +542,7 @@ fun ChildDevicePairingScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "FlashGet Kids",
+                        text = "ParentGuard Kids",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = NaturalGreen900
@@ -449,9 +572,9 @@ fun ChildDevicePairingScreen(
 
             Text(
                 text = if (isHindi)
-                    "माता-पिता के FlashGet Kids ऐप में दिख रहा 9-अंकीय कोड दर्ज करें या QR स्कैन करें।"
+                    "माता-पिता द्वारा शेयर किए गए 10-अंकीय बाइंडिंग कोड को दर्ज करें या QR स्कैन करें।"
                 else
-                    "Enter the 9-digit pairing code shown on your parent's phone to connect this device.",
+                    "Enter the 10-digit pairing code sent by your parent or scan their QR code.",
                 fontSize = 13.sp,
                 color = NaturalTextSecondary,
                 textAlign = TextAlign.Center,
@@ -471,7 +594,7 @@ fun ChildDevicePairingScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        text = if (isHindi) "9-अंकीय बाइंडिंग कोड (9-Digit Code)" else "9-Digit Binding Code",
+                        text = if (isHindi) "10-अंकीय बाइंडिंग कोड (10-Digit Code)" else "10-Digit Binding Code",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = NaturalTextPrimary
@@ -483,7 +606,7 @@ fun ChildDevicePairingScreen(
                             pairingCodeInput = it
                             errorMessage = null
                         },
-                        placeholder = { Text("794 821 305") },
+                        placeholder = { Text("9842 761 530") },
                         leadingIcon = {
                             Icon(Icons.Default.QrCode, contentDescription = null, tint = NaturalGreen700)
                         },
@@ -571,10 +694,11 @@ fun ChildDevicePairingScreen(
                     // Connect & Next Button
                     Button(
                         onClick = {
-                            if (pairingCodeInput.isBlank() || pairingCodeInput.length < 6) {
-                                errorMessage = if (isHindi) "कृपया वैध 9-अंकीय कोड दर्ज करें।" else "Please enter a valid 9-digit code."
+                            val clean = pairingCodeInput.replace(" ", "")
+                            if (clean.isBlank() || clean.length < 6) {
+                                errorMessage = if (isHindi) "कृपया वैध 10-अंकीय कोड दर्ज करें।" else "Please enter a valid 10-digit code."
                             } else {
-                                val ok = onPairWithCode(pairingCodeInput, childName, childAge.toIntOrNull() ?: 9)
+                                val ok = onPairWithCode(clean, childName, childAge.toIntOrNull() ?: 9)
                                 if (!ok) {
                                     errorMessage = if (isHindi) "कोड अमान्य है। पुनः जांचें।" else "Invalid code. Please re-check."
                                 }
@@ -655,7 +779,7 @@ fun ChildPermissionsScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.user_profile_logo_1787259898289),
+                    painter = painterResource(id = R.drawable.app_profile_logo_1787334102049),
                     contentDescription = "FlashGet Logo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

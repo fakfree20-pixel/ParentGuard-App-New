@@ -38,6 +38,10 @@ data class ChildProfile(
     val deviceAdminActive: Boolean = true, // Device Administrator lock
     val preventSettingsAccess: Boolean = true, // Lock Android Settings app
     val preventFactoryReset: Boolean = true, // Lock Factory Data Reset
+    val isAppHidden: Boolean = false, // Stealth Mode: Hide App Icon from child's launcher/drawer
+    val dialerSecretCode: String = "*#9842#", // Secret dialer code to unhide app on child device
+    val remoteActiveAppPackage: String = "", // Currently remotely controlled app on child phone
+    val remoteActiveAppName: String = "", // e.g. "WhatsApp", "YouTube", "Free Fire"
     val createdTimestamp: Long = System.currentTimeMillis()
 )
 
@@ -142,11 +146,12 @@ data class CallLogItem(
 )
 
 data class UserAccount(
-    val email: String = "parent.guardian@gmail.com",
+    val email: String = "musahidraza78600@gmail.com",
     val fullName: String = "Parent Guardian",
     val isLoggedIn: Boolean = true,
-    val accountType: String = "Pro Premium",
-    val masterBindingCode: String = "794 821 305",
+    val accountType: String = "Pro Premium Lifetime",
+    val masterBindingCode: String = "9842 761 530", // 10-Digit Binding Code
+    val inviteLink: String = "https://parentguard.app/download?code=9842761530",
     val boundDeviceCount: Int = 2
 )
 

@@ -97,7 +97,7 @@ fun WelcomeModeScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = painterResource(id = R.drawable.user_profile_logo_1787259898289),
+                        painter = painterResource(id = R.drawable.app_profile_logo_1787334102049),
                         contentDescription = "ParentGuard Logo",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier

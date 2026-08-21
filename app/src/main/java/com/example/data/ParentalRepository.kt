@@ -15,6 +15,13 @@ import kotlinx.coroutines.flow.Flow
 class ParentalRepository(private val dao: ParentalControlDao) {
     val allChildProfiles: Flow<List<ChildProfile>> = dao.getAllChildProfiles()
 
+    suspend fun ensureDataPopulated() {
+        val count = dao.getChildProfileCount()
+        if (count == 0) {
+            AppDatabase.populateInitialData(dao)
+        }
+    }
+
     fun getChildProfile(childId: Long): Flow<ChildProfile?> = dao.getChildProfileById(childId)
 
     fun getAppUsageRules(childId: Long): Flow<List<AppUsageRule>> = dao.getAppUsageRules(childId)
@@ -100,6 +107,36 @@ class ParentalRepository(private val dao: ParentalControlDao) {
                 descriptionHindi = if (enabled) "डिवाइस एडमिन व सेटिंग्स सुरक्षा चालू है, बच्चा ऐप नहीं हटा सकता" else "अनइंस्टॉल सुरक्षा निष्क्रिय की गई"
             )
         )
+    }
+
+    suspend fun setAppHidden(childId: Long, isHidden: Boolean) {
+        dao.setAppHidden(childId, isHidden)
+        dao.insertActivityLog(
+            ActivityLogItem(
+                childId = childId,
+                type = "STEALTH_MODE",
+                title = if (isHidden) "App Icon Hidden (Stealth Active)" else "App Icon Visible (Normal Mode)",
+                titleHindi = if (isHidden) "ऐप आइकन छुपाया गया (स्टील्थ मोड सक्रिय)" else "ऐप आइकन दृश्यमान (सामान्य मोड)",
+                description = if (isHidden) "ParentGuard is running invisibly in background. Dial *#9842# to open." else "App icon is visible in child launcher",
+                descriptionHindi = if (isHidden) "ऐप बैकग्राउंड में अदृश्य रूप से चल रहा है। खोलने के लिए *#9842# डायल करें।" else "ऐप आइकन बच्चे के फोन पर दिखाई दे रहा है।"
+            )
+        )
+    }
+
+    suspend fun setRemoteActiveApp(childId: Long, packageName: String, appName: String) {
+        dao.setRemoteActiveApp(childId, packageName, appName)
+        if (appName.isNotBlank()) {
+            dao.insertActivityLog(
+                ActivityLogItem(
+                    childId = childId,
+                    type = "REMOTE_LAUNCH",
+                    title = "Remotely Launched $appName",
+                    titleHindi = "$appName को रिमोटली चलाया गया",
+                    description = "Parent launched and controlled $appName remotely from parent device",
+                    descriptionHindi = "माता-पिता ने अपने फोन से बच्चे के डिवाइस पर $appName ऐप को रिमोटली खोला और नियंत्रित किया"
+                )
+            )
+        }
     }
 
     suspend fun addBonusMinutes(childId: Long, minutes: Int, reason: String = "Bonus Screen Time") {

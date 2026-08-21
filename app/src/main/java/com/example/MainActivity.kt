@@ -48,6 +48,8 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
@@ -223,6 +225,9 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                 onRegister = { name, email, pass ->
                     viewModel.register(name, email, pass)
                 },
+                onGoogleLogin = { email, name ->
+                    viewModel.loginWithGoogle(email, name)
+                },
                 onBackToModeSelect = {
                     viewModel.setAppMode(AppMode.WELCOME_MODE_SELECTION)
                 },
@@ -286,21 +291,38 @@ fun ParentGuardMainApp(viewModel: ParentalControlViewModel) {
                 .background(NaturalBg),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(24.dp)
+            ) {
                 Image(
-                    painter = painterResource(id = R.drawable.user_profile_logo_1787259898289),
+                    painter = painterResource(id = R.drawable.app_profile_logo_1787334102049),
                     contentDescription = "ParentGuard Logo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(68.dp)
-                        .clip(RoundedCornerShape(18.dp))
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(20.dp))
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = if (isHindi) "ParentGuard लोड हो रहा है..." else "Loading ParentGuard...",
+                    text = if (isHindi) "ParentGuard डैशबोर्ड लोड हो रहा है..." else "Loading ParentGuard Dashboard...",
                     fontWeight = FontWeight.Bold,
                     color = NaturalGreen700
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        viewModel.addChildProfile(
+                            name = "Aarav",
+                            age = 9,
+                            deviceModel = "Infinix X6823C",
+                            avatarIndex = 0
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NaturalGreen700)
+                ) {
+                    Text(if (isHindi) "चाइल्ड डिवाइस कनेक्ट करें" else "Connect Child Device")
+                }
             }
         }
         return

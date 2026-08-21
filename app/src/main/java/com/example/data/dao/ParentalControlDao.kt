@@ -19,6 +19,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ParentalControlDao {
     // Child Profiles
+    @Query("SELECT COUNT(*) FROM child_profiles")
+    suspend fun getChildProfileCount(): Int
+
     @Query("SELECT * FROM child_profiles ORDER BY id ASC")
     fun getAllChildProfiles(): Flow<List<ChildProfile>>
 
@@ -42,6 +45,12 @@ interface ParentalControlDao {
 
     @Query("UPDATE child_profiles SET antiUninstallEnabled = :enabled, preventSettingsAccess = :preventSettings, preventFactoryReset = :preventReset WHERE id = :childId")
     suspend fun setAntiUninstallProtection(childId: Long, enabled: Boolean, preventSettings: Boolean, preventReset: Boolean)
+
+    @Query("UPDATE child_profiles SET isAppHidden = :isAppHidden WHERE id = :childId")
+    suspend fun setAppHidden(childId: Long, isAppHidden: Boolean)
+
+    @Query("UPDATE child_profiles SET remoteActiveAppPackage = :packageName, remoteActiveAppName = :appName WHERE id = :childId")
+    suspend fun setRemoteActiveApp(childId: Long, packageName: String, appName: String)
 
     @Query("UPDATE child_profiles SET bonusMinutesToday = bonusMinutesToday + :minutes WHERE id = :childId")
     suspend fun addBonusMinutes(childId: Long, minutes: Int)
