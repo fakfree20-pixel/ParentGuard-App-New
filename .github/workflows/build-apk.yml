@@ -22,38 +22,25 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: 'gradle'
 
-      - name: Setup Android SDK and Licenses
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK Licenses
         run: |
-          mkdir -p "$ANDROID_HOME/licenses" 2>/dev/null || true
-          mkdir -p "$ANDROID_SDK_ROOT/licenses" 2>/dev/null || true
-          
-          # Write known license hashes
+          mkdir -p "$ANDROID_HOME/licenses" || true
           cat << 'EOF' > "$ANDROID_HOME/licenses/android-sdk-license"
           89337d125679aa4727041753eab9c7936030784b
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           d56f518547926e707e8178b773d06627041f3800
-          EOF
-
-          cat << 'EOF' > "$ANDROID_HOME/licenses/android-sdk-preview-license"
           84831b9409646a918e30573bab4c9c91346d8abd
           EOF
-
-          if [ -n "$ANDROID_SDK_ROOT" ] && [ "$ANDROID_SDK_ROOT" != "$ANDROID_HOME" ]; then
-            cp -r "$ANDROID_HOME/licenses"/* "$ANDROID_SDK_ROOT/licenses/" 2>/dev/null || true
-          fi
-
-          # Accept all licenses via sdkmanager if available
-          if command -v sdkmanager >/dev/null 2>&1; then
-            yes | sdkmanager --licenses 2>/dev/null || true
-          elif [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses 2>/dev/null || true
-          fi
+          yes | sdkmanager --licenses || true
 
       - name: Setup Environment & Keystores
         run: |
@@ -93,17 +80,25 @@ jobs:
           KEY_ALIAS: upload
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          if [ ! -f "./gradlew" ]; then
-            gradle wrapper --gradle-version 9.3.1
-          fi
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false -Dksp.useKSP2=true -Dksp.incremental=false
+          ./gradlew assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false -Dksp.useKSP2=true -Dksp.incremental=false || \
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Prepare APK Outputs
+      - name: Collect & Name APK Outputs
         if: always()
         run: |
           mkdir -p build-apks
-          find . -type f -name "*.apk" -exec cp -v {} build-apks/ \; 2>/dev/null || true
+          # Find and copy all generated APKs
+          find app/build/outputs/apk -name "*.apk" -exec cp -v {} build-apks/ \; 2>/dev/null || true
+          
+          # If specific naming is needed, create clear aliases
+          if [ -f build-apks/app-debug.apk ]; then
+            cp build-apks/app-debug.apk build-apks/ParentGuard-debug.apk
+          fi
+          if [ -f build-apks/app-release.apk ]; then
+            cp build-apks/app-release.apk build-apks/ParentGuard-release.apk
+          fi
+          
           echo "Collected APKs:"
           ls -la build-apks/
 
