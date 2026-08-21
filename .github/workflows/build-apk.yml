@@ -27,12 +27,20 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          validate-wrappers: false
+      - name: Accept Android SDK Licenses & Install Components
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses" || true
+          echo -e "\n89337d125679aa4727041753eab9c7936030784b\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f518547926e707e8178b773d06627041f3800" >> "$ANDROID_HOME/licenses/android-sdk-license"
+          echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" >> "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          if command -v sdkmanager >/dev/null 2>&1; then
+            yes | sdkmanager --licenses || true
+            yes | sdkmanager "platforms;android-36" "platform-tools" || true
+          elif [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "platform-tools" || true
+          fi
 
-      - name: Setup Android Environment & Keystore
+      - name: Setup Android Environment & Keystores
         run: |
           # 1. Ensure .env and secrets.properties exist
           touch .env
@@ -82,6 +90,12 @@ jobs:
           # Provide standard names
           if [ -f build-apks/app-debug.apk ]; then
             cp -v build-apks/app-debug.apk build-apks/ParentGuard-debug.apk || true
+          fi
+          if [ -f build-apks/app-release-unsigned.apk ]; then
+            cp -v build-apks/app-release-unsigned.apk build-apks/ParentGuard-release.apk || true
+          fi
+          if [ -f build-apks/app-release.apk ]; then
+            cp -v build-apks/app-release.apk build-apks/ParentGuard-release.apk || true
           fi
           
           echo "=== Found APKs ==="
