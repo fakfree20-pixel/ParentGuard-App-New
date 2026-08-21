@@ -28,10 +28,6 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
-      - name: Setup Android SDK Licenses
-        run: |
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses || yes | sdkmanager --licenses || true
-
       - name: Setup Environment & Keystores
         run: |
           # Create .env if missing
@@ -51,10 +47,13 @@ jobs:
           # Generate release keystore if needed
           keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US" || true
 
-          # Ensure app directory has copies
+          # Ensure app directory and root both have copies
           mkdir -p app
           cp debug.keystore app/debug.keystore || true
           cp my-upload-key.jks app/my-upload-key.jks || true
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android APK with Gradle
         env:
@@ -63,7 +62,7 @@ jobs:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
           chmod +x ./gradlew || true
-          ./gradlew :app:assembleDebug --stacktrace --no-daemon
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Build Release APK (Optional)
         continue-on-error: true
@@ -72,12 +71,12 @@ jobs:
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          ./gradlew :app:assembleRelease --stacktrace --no-daemon
+          ./gradlew assembleRelease --stacktrace --no-daemon
 
       - name: Prepare APK Outputs
         run: |
           mkdir -p build-apks
-          find app/build/outputs/apk -name "*.apk" -exec cp {} build-apks/ \; || true
+          find . -type f -name "*.apk" -exec cp {} build-apks/ \; || true
           ls -la build-apks/
 
       - name: Upload APK Artifacts
