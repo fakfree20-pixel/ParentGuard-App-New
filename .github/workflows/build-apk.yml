@@ -27,12 +27,17 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK Licenses
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
+
+      - name: Accept Android SDK Licenses & Install Platform
         run: |
-          mkdir -p "$ANDROID_HOME/licenses" 2>/dev/null || true
-          mkdir -p "$ANDROID_SDK_ROOT/licenses" 2>/dev/null || true
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
           
-          # Add all known Android SDK and Preview license hashes
+          mkdir -p "$ANDROID_HOME/licenses" 2>/dev/null || true
           cat << 'EOF' > "$ANDROID_HOME/licenses/android-sdk-license"
           89337d125679aa4727041753eab9c7936030784b
           24333f8a63b6825ea9c5514f83c2829b004d1fee
@@ -43,16 +48,25 @@ jobs:
           84831b9409646a918e30573bab4c9c91346d8abd
           EOF
 
-          cp -r "$ANDROID_HOME/licenses"/* "$ANDROID_SDK_ROOT/licenses/" 2>/dev/null || true
+          if [ -n "$ANDROID_SDK_ROOT" ] && [ "$ANDROID_SDK_ROOT" != "$ANDROID_HOME" ]; then
+            mkdir -p "$ANDROID_SDK_ROOT/licenses" 2>/dev/null || true
+            cp -r "$ANDROID_HOME/licenses"/* "$ANDROID_SDK_ROOT/licenses/" 2>/dev/null || true
+          fi
 
       - name: Setup Environment & Keystores
         run: |
-          # Create .env with fallback values
+          # Create .env and secrets.properties
           touch .env
           echo "GEMINI_API_KEY=" >> .env
           if [ -f ".env.example" ]; then
             cat .env.example >> .env
           fi
+
+          touch secrets.properties
+          echo "GEMINI_API_KEY=" >> secrets.properties
+
+          # Create local.properties with sdk.dir
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
 
           # Decode or generate debug.keystore
           if [ -f "debug.keystore.base64" ]; then
@@ -102,7 +116,8 @@ jobs:
         if: always()
         run: |
           mkdir -p build-apks
-          find . -type f -name "*.apk" -exec cp {} build-apks/ \; 2>/dev/null || true
+          find . -type f -name "*.apk" -exec cp -v {} build-apks/ \; 2>/dev/null || true
+          echo "Collected APKs:"
           ls -la build-apks/
 
       - name: Upload APK Artifacts
@@ -126,5 +141,6 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
