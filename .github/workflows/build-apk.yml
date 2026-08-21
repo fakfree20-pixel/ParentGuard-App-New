@@ -77,7 +77,7 @@ jobs:
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          ./gradlew assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false || gradle assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false
+          ./gradlew assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false -Dksp.useKSP2=true -Dksp.incremental=false
 
       - name: Build Release APK (Optional)
         continue-on-error: true
@@ -86,7 +86,7 @@ jobs:
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          ./gradlew assembleRelease --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false
+          ./gradlew assembleRelease --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false -Dksp.useKSP2=true -Dksp.incremental=false
 
       - name: Prepare APK Outputs
         run: |
