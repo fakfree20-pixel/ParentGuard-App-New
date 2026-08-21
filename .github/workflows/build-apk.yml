@@ -67,14 +67,17 @@ jobs:
         with:
           validate-wrappers: false
 
+      - name: Ensure Executable Gradle Wrapper
+        run: |
+          chmod +x ./gradlew || true
+
       - name: Build Android APK with Gradle
         env:
           STORE_PASSWORD: android
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false
+          ./gradlew assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false || gradle assembleDebug --stacktrace --no-daemon -Dorg.gradle.configuration-cache=false
 
       - name: Build Release APK (Optional)
         continue-on-error: true
