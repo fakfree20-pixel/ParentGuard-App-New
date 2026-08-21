@@ -22,17 +22,25 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
       - name: Setup Environment & Keystores
         run: |
-          # Create .env if missing
+          # Create .env with fallback
           touch .env
+          echo "GEMINI_API_KEY=" >> .env
           if [ -f ".env.example" ]; then
-            cp .env.example .env
+            cat .env.example >> .env
           fi
 
           # Decode or generate debug.keystore
@@ -63,7 +71,7 @@ jobs:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
           chmod +x ./gradlew || true
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          ./gradlew assembleDebug --stacktrace --no-daemon --no-configuration-cache
 
       - name: Build Release APK (Optional)
         continue-on-error: true
@@ -72,7 +80,7 @@ jobs:
           KEY_PASSWORD: android
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          ./gradlew assembleRelease --stacktrace --no-daemon
+          ./gradlew assembleRelease --stacktrace --no-daemon --no-configuration-cache
 
       - name: Prepare APK Outputs
         run: |
