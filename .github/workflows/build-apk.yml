@@ -22,31 +22,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Accept Android SDK Licenses
+      - name: Prepare Secrets & Environment
         run: |
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
-          mkdir -p "$ANDROID_HOME/licenses" 2>/dev/null || true
-          mkdir -p "$ANDROID_SDK_ROOT/licenses" 2>/dev/null || true
-          for loc in "$ANDROID_HOME/licenses" "$ANDROID_SDK_ROOT/licenses"; do
-            if [ -n "$loc" ]; then
-              mkdir -p "$loc" 2>/dev/null || true
-              printf "89337d125679aa4727041753eab9c7936030784b\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f518547926e707e8178b773d06627041f3800\n84831b9409646a918e30573bab4c9c91346d8abd\n" > "$loc/android-sdk-license" 2>/dev/null || true
-              printf "84831b9409646a918e30573bab4c9c91346d8abd\n" > "$loc/android-sdk-preview-license" 2>/dev/null || true
-              printf "601085b94cd77f0b54ff864069570991500085d7\n" > "$loc/android-googletv-license" 2>/dev/null || true
-              printf "33b6a2b64920400829152f90dddd4d8666f65157\n" > "$loc/google-gdk-license" 2>/dev/null || true
-              printf "e9acab5b5fbb560a725114e6de8b07049d715d3d\n" > "$loc/mips-android-sysimage-license" 2>/dev/null || true
-            fi
-          done
-
-      - name: Setup Android Environment & Keystores
-        run: |
-          # 1. Ensure .env and secrets.properties exist
           touch .env
           echo "GEMINI_API_KEY=" > .env
           if [ -f ".env.example" ]; then
@@ -56,24 +38,34 @@ jobs:
           touch secrets.properties
           echo "GEMINI_API_KEY=" > secrets.properties
 
-          # 2. Setup debug keystore
+          touch local.defaults.properties
+          echo "GEMINI_API_KEY=" > local.defaults.properties
+
+          # Setup Debug Keystore
           if [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || base64 --decode debug.keystore.base64 > debug.keystore 2>/dev/null || true
+            (base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null) || (base64 --decode debug.keystore.base64 > debug.keystore 2>/dev/null) || true
           fi
           if [ ! -s "debug.keystore" ]; then
             keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
           fi
 
-          # 3. Setup upload release keystore
-          keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US" 2>/dev/null || true
+          # Setup Upload Keystore
+          if [ ! -s "my-upload-key.jks" ]; then
+            keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US" 2>/dev/null || true
+          fi
 
-          # 4. Mirror keystores to app folder
+          # Ensure app subdirectory also has copies
           mkdir -p app
           cp -f debug.keystore app/debug.keystore 2>/dev/null || true
           cp -f my-upload-key.jks app/my-upload-key.jks 2>/dev/null || true
 
-          # 5. Make gradlew executable
+          # Ensure gradlew is executable
           chmod +x ./gradlew
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: false
 
       - name: Build Android APK
         env:
@@ -82,29 +74,21 @@ jobs:
           KEY_ALIAS: upload
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
         run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Collect APKs
+      - name: Collect APK Outputs
         if: always()
         run: |
           mkdir -p build-apks
-          # Find all APK files and copy to build-apks
-          find . -name "*.apk" -not -path "*/build-apks/*" | while read -r apk; do
-            echo "Found APK: $apk"
-            cp -v "$apk" build-apks/
-          done
-          
-          # Provide standard names
+          # Find all APK files from app outputs
+          find app/build/outputs/apk/ -name "*.apk" -type f -exec cp -v {} build-apks/ \; 2>/dev/null || true
+          find . -name "*.apk" -not -path "*/build-apks/*" -type f -exec cp -v {} build-apks/ \; 2>/dev/null || true
+
+          # Standardized alias
           if [ -f build-apks/app-debug.apk ]; then
             cp -v build-apks/app-debug.apk build-apks/ParentGuard-debug.apk || true
           fi
-          if [ -f build-apks/app-release.apk ]; then
-            cp -v build-apks/app-release.apk build-apks/ParentGuard-release.apk || true
-          fi
-          if [ -f build-apks/app-release-unsigned.apk ]; then
-            cp -v build-apks/app-release-unsigned.apk build-apks/ParentGuard-release-unsigned.apk || true
-          fi
-          
+
           echo "=== Collected APKs in build-apks ==="
           ls -la build-apks/
 
@@ -113,7 +97,7 @@ jobs:
         if: always()
         with:
           name: ParentGuard-APKs
-          path: build-apks/*
+          path: build-apks/*.apk
           retention-days: 30
           if-no-files-found: warn
 
@@ -121,7 +105,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build-apks/*
+          files: build-apks/*.apk
           draft: false
           prerelease: false
           generate_release_notes: true
