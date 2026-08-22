@@ -22,13 +22,50 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Setup Android SDK & Accept Licenses
+        run: |
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+
+          # Fix permissions on runner SDK
+          sudo chown -R $USER:$USER "$ANDROID_HOME" 2>/dev/null || true
+
+          # Pre-accept all Android SDK licenses
+          for lic_dir in "$ANDROID_HOME/licenses" "$ANDROID_SDK_ROOT/licenses" "/usr/local/lib/android/sdk/licenses"; do
+            [ -n "$lic_dir" ] || continue
+            mkdir -p "$lic_dir" 2>/dev/null || true
+            printf "89337d125679aa4727041753eab9c7936030784b\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f518547926e707e8178b773d06627041f3800\n84831b9409646a918e30573bab4c9c91346d8abd\n" > "$lic_dir/android-sdk-license" 2>/dev/null || true
+            printf "84831b9409646a918e30573bab4c9c91346d8abd\n" > "$lic_dir/android-sdk-preview-license" 2>/dev/null || true
+            printf "601085b94cd77f0b54ff864069570991500085d7\n" > "$lic_dir/android-googletv-license" 2>/dev/null || true
+            printf "33b6a2b64920400829152f90dddd4d8666f65157\n" > "$lic_dir/google-gdk-license" 2>/dev/null || true
+            printf "e9acab5b5fbb560a725114e6de8b07049d715d3d\n" > "$lic_dir/mips-android-sysimage-license" 2>/dev/null || true
+            printf "859f317696f67ef3d7f30a50a5560e7834b43903\n" > "$lic_dir/android-sdk-arm-dbt-license" 2>/dev/null || true
+          done
+
+          # Install platform 36 & build-tools if sdkmanager is available
+          SDK_MGR=""
+          if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDK_MGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          elif [ -x "/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDK_MGR="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          elif command -v sdkmanager >/dev/null 2>&1; then
+            SDK_MGR=$(command -v sdkmanager)
+          fi
+
+          if [ -n "$SDK_MGR" ]; then
+            echo "Installing platforms;android-36 using $SDK_MGR"
+            (yes | "$SDK_MGR" --licenses >/dev/null 2>&1) || true
+            "$SDK_MGR" "platforms;android-36" "build-tools;36.0.0" "platform-tools" >/dev/null 2>&1 || true
+          fi
+
       - name: Prepare Secrets & Environment
         run: |
+          # 1. Config properties
           touch .env
           echo "GEMINI_API_KEY=" > .env
           if [ -f ".env.example" ]; then
@@ -41,7 +78,14 @@ jobs:
           touch local.defaults.properties
           echo "GEMINI_API_KEY=" > local.defaults.properties
 
-          # Setup Debug Keystore
+          # 2. Set sdk.dir in local.properties
+          if [ -n "$ANDROID_HOME" ]; then
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+          elif [ -n "$ANDROID_SDK_ROOT" ]; then
+            echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          fi
+
+          # 3. Setup Debug Keystore
           if [ -f "debug.keystore.base64" ]; then
             (base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null) || (base64 --decode debug.keystore.base64 > debug.keystore 2>/dev/null) || true
           fi
@@ -49,17 +93,17 @@ jobs:
             keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
           fi
 
-          # Setup Upload Keystore
+          # 4. Setup Upload Keystore
           if [ ! -s "my-upload-key.jks" ]; then
             keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=Android,C=US" 2>/dev/null || true
           fi
 
-          # Ensure app subdirectory also has copies
+          # 5. Ensure app subdirectory also has copies
           mkdir -p app
           cp -f debug.keystore app/debug.keystore 2>/dev/null || true
           cp -f my-upload-key.jks app/my-upload-key.jks 2>/dev/null || true
 
-          # Ensure gradlew is executable
+          # 6. Ensure gradlew is executable
           chmod +x ./gradlew
 
       - name: Setup Gradle
