@@ -120,37 +120,7 @@ jobs:
         run: |
           mkdir -p app
           if [ ! -f "app/google-services.json" ]; then
-            cat << 'EOF' > app/google-services.json
-{
-  "project_info": {
-    "project_number": "123456789012",
-    "project_id": "parentguard-app",
-    "storage_bucket": "parentguard-app.appspot.com"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:1234567890abcdef",
-        "android_client_info": {
-          "package_name": "com.aistudio.parentguard.screentime.ijfqfr"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDummyKeyForBuildOnly123456789"
-        }
-      ],
-      "services": {
-        "analytics_service": { "status": 1 },
-        "appinvite_service": { "status": 1 },
-        "ads_service": { "status": 1 }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-EOF
+            echo '{"project_info":{"project_number":"123456789012","project_id":"parentguard-app","storage_bucket":"parentguard-app.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789012:android:1234567890abcdef","android_client_info":{"package_name":"com.aistudio.parentguard.screentime.ijfqfr"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyDummyKeyForBuildOnly123456789"}],"services":{"analytics_service":{"status":1},"appinvite_service":{"status":1},"ads_service":{"status":1}}}],"configuration_version":"1"}' > app/google-services.json
           fi
           bash ./gradlew assembleDebug --stacktrace --no-daemon
 
